@@ -1,0 +1,17 @@
+# Secrets — never commit
+id_rsa*
+id_ed25519*
+*.pem
+*.key
+.env
+
+# Containerlab runtime folders (regenerated on every deploy)
+clab-*/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Editor
+.vscode/
