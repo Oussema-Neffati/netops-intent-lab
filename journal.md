@@ -17,3 +17,12 @@
   although the hosts' static routes expect them to be. Config ≠ intent.
 - Lessons for M1: advertise loopbacks deliberately; use OSPF point-to-point on
   router links; test data-plane addresses only, never management (eth0).
+
+  ## 2026-10-29 — M1 step 2: topology and addressing
+- Did: 10-node topology (6 FRR + 4 hosts); interface addresses on all routers.
+- Verified: 11/11 links pass ping; cabling matches the interface map.
+- Mistake caught before deploy: b-edge eth1/eth2 swapped (right addresses, wrong ports).
+- Prediction 1: wan-p1 → 10.0.0.2 fails; local kernel has no route ("sendto: Network unreachable").
+- Prediction 2: h-a1 → h-a2 works without routing (TTL 63); a-core is connected to both LANs.
+- Measured: routers 29–45 MiB with ospfd+bgpd; whole lab ≈ 220 MiB.
+- Problem: files saved with CRLF. Fix: VS Code files.eol = \n, sed conversion, .gitattributes.
