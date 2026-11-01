@@ -14,7 +14,7 @@ topology:
       kind: linux
       image: wbitt/network-multitool:3.22.2
       labels:
-        graph-icon: host
+        graph-icon: client
 
   nodes:
     # --- Provider (AS 65000) ---
@@ -50,6 +50,8 @@ topology:
         - ip route add 10.0.0.0/8 via 10.2.10.1 dev eth1
     h-b2:
       group: hosts
+      labels:
+           graph-level: 4
       exec:
         - ip addr add 10.2.20.10/24 dev eth1
         - ip route add 10.0.0.0/8 via 10.2.20.1 dev eth1

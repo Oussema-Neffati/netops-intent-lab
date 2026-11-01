@@ -52,28 +52,32 @@
       "position": {
         "x": 580,
         "y": 560
-      }
+      },
+      "icon": "client"
     },
     {
       "id": "h-a2",
       "position": {
         "x": 520,
         "y": 260
-      }
+      },
+      "icon": "client"
     },
     {
       "id": "h-b1",
       "position": {
         "x": 700,
         "y": 380
-      }
+      },
+      "icon": "client"
     },
     {
       "id": "h-b2",
       "position": {
         "x": 700,
         "y": 260
-      }
+      },
+      "icon": "client"
     }
   ],
   "edgeAnnotations": [],
