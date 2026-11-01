@@ -26,3 +26,15 @@
 - Prediction 2: h-a1 → h-a2 works without routing (TTL 63); a-core is connected to both LANs.
 - Measured: routers 29–45 MiB with ospfd+bgpd; whole lab ≈ 220 MiB.
 - Problem: files saved with CRLF. Fix: VS Code files.eol = \n, sed conversion, .gitattributes.
+
+## 2026-11-01 — M1 step 3: provider core
+- Bug: wan-p2 had `network 10.0.0.1/32` (wan-p1's loopback) instead of 10.0.0.2/32.
+- Symptoms: OSPF Full, but no OSPF routes on wan-p1 → loopback unreachable → BGP stuck in Active.
+- Lesson: adjacency up ≠ correct routes. FRR accepted the wrong line silently.
+- Validator check idea: "each router has an OSPF route to every expected loopback".
+
+- eBGP between both edges and both provider routers; summaries, default route, prefix-lists.
+- Verified: 5/5 BGP sessions, each edge gets default + other site from both providers,
+  cross-site pings OK (TTL 59 = 5 router hops).
+- Observation: WAN is active-active (ECMP over both providers), not active-standby.
+- M1 complete.
