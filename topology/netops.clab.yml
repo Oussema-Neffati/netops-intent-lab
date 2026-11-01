@@ -8,33 +8,43 @@ topology:
       daemons:
         - ospfd
         - bgpd
+      labels:
+        graph-icon: router  
     hosts:
       kind: linux
       image: wbitt/network-multitool:3.22.2
+      labels:
+        graph-icon: host
 
   nodes:
     # --- Provider (AS 65000) ---
-    wan-p1: { group: routers, startup-config: ../configs/wan-p1.conf }
-    wan-p2: { group: routers, startup-config: ../configs/wan-p2.conf }
+    wan-p1: { group: routers, startup-config: ../configs/wan-p1.conf, labels: { graph-level: 1 } }
+    wan-p2: { group: routers, startup-config: ../configs/wan-p2.conf, labels: { graph-level: 1 } }
     # --- Site A (AS 65001) ---
-    a-edge: { group: routers, startup-config: ../configs/a-edge.conf }
-    a-core: { group: routers, startup-config: ../configs/a-core.conf }
+    a-edge: { group: routers, startup-config: ../configs/a-edge.conf, labels: { graph-level: 2 } }
+    a-core: { group: routers, startup-config: ../configs/a-core.conf, labels: { graph-level: 3 } }
     # --- Site B (AS 65002) ---
-    b-edge: { group: routers, startup-config: ../configs/b-edge.conf }
-    b-core: { group: routers, startup-config: ../configs/b-core.conf }
+    b-edge: { group: routers, startup-config: ../configs/b-edge.conf, labels: { graph-level: 2 } }
+    b-core: { group: routers, startup-config: ../configs/b-core.conf, labels: { graph-level: 3 } }
     # --- Hosts ---
     h-a1:
       group: hosts
+      labels:
+        graph-level: 4
       exec:
         - ip addr add 10.1.10.10/24 dev eth1
         - ip route add 10.0.0.0/8 via 10.1.10.1 dev eth1
     h-a2:
       group: hosts
+      labels:
+        graph-level: 4
       exec:
         - ip addr add 10.1.20.10/24 dev eth1
         - ip route add 10.0.0.0/8 via 10.1.20.1 dev eth1
     h-b1:
       group: hosts
+      labels:
+        graph-level: 4
       exec:
         - ip addr add 10.2.10.10/24 dev eth1
         - ip route add 10.0.0.0/8 via 10.2.10.1 dev eth1
@@ -45,14 +55,14 @@ topology:
         - ip route add 10.0.0.0/8 via 10.2.20.1 dev eth1
 
   links:
-    - endpoints: ["wan-p1:eth1", "wan-p2:eth1"]   # L1
-    - endpoints: ["wan-p1:eth2", "a-edge:eth1"]   # L2
-    - endpoints: ["wan-p2:eth2", "a-edge:eth2"]   # L3
-    - endpoints: ["wan-p1:eth3", "b-edge:eth1"]   # L4
-    - endpoints: ["wan-p2:eth3", "b-edge:eth2"]   # L5
-    - endpoints: ["a-edge:eth3", "a-core:eth1"]   # L6
-    - endpoints: ["b-edge:eth3", "b-core:eth1"]   # L7
-    - endpoints: ["a-core:eth2", "h-a1:eth1"]     # Site A LAN 1
-    - endpoints: ["a-core:eth3", "h-a2:eth1"]     # Site A LAN 2
-    - endpoints: ["b-core:eth2", "h-b1:eth1"]     # Site B LAN 1
-    - endpoints: ["b-core:eth3", "h-b2:eth1"]     # Site B LAN 2
+    - endpoints: [ "wan-p1:eth1", "wan-p2:eth1" ] # L1
+    - endpoints: [ "wan-p1:eth2", "a-edge:eth1" ] # L2
+    - endpoints: [ "wan-p2:eth2", "a-edge:eth2" ] # L3
+    - endpoints: [ "wan-p1:eth3", "b-edge:eth1" ] # L4
+    - endpoints: [ "wan-p2:eth3", "b-edge:eth2" ] # L5
+    - endpoints: [ "a-edge:eth3", "a-core:eth1" ] # L6
+    - endpoints: [ "b-edge:eth3", "b-core:eth1" ] # L7
+    - endpoints: [ "a-core:eth2", "h-a1:eth1" ] # Site A LAN 1
+    - endpoints: [ "a-core:eth3", "h-a2:eth1" ] # Site A LAN 2
+    - endpoints: [ "b-core:eth2", "h-b1:eth1" ] # Site B LAN 1
+    - endpoints: [ "b-core:eth3", "h-b2:eth1" ] # Site B LAN 2
