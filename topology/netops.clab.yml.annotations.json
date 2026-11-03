@@ -8,74 +8,74 @@
     {
       "id": "wan-p1",
       "position": {
-        "x": 160,
-        "y": 360
+        "x": 260,
+        "y": 180
       }
     },
     {
       "id": "wan-p2",
       "position": {
-        "x": 220,
-        "y": 220
+        "x": 480,
+        "y": 180
       }
     },
     {
       "id": "a-edge",
       "position": {
-        "x": 300,
-        "y": 380
+        "x": 260,
+        "y": 320
       }
     },
     {
       "id": "a-core",
       "position": {
-        "x": 460,
-        "y": 440
+        "x": 260,
+        "y": 460
       }
     },
     {
       "id": "b-edge",
       "position": {
-        "x": 340,
-        "y": 300
+        "x": 480,
+        "y": 320
       }
     },
     {
       "id": "b-core",
       "position": {
-        "x": 540,
-        "y": 340
+        "x": 480,
+        "y": 460
       }
     },
     {
       "id": "h-a1",
       "position": {
-        "x": 580,
-        "y": 560
+        "x": 200,
+        "y": 580
       },
       "icon": "client"
     },
     {
       "id": "h-a2",
       "position": {
-        "x": 520,
-        "y": 260
+        "x": 300,
+        "y": 580
       },
       "icon": "client"
     },
     {
       "id": "h-b1",
       "position": {
-        "x": 700,
-        "y": 380
+        "x": 420,
+        "y": 580
       },
       "icon": "client"
     },
     {
       "id": "h-b2",
       "position": {
-        "x": 700,
-        "y": 260
+        "x": 520,
+        "y": 580
       },
       "icon": "client"
     }

@@ -31,6 +31,7 @@ Full design, addressing plan and the reasoning behind each choice:
 | BGP sessions | 5/5 Established (1 iBGP + 4 eBGP) |
 | Each edge receives the default and the other site's summary from both providers | Yes (both paths used: ECMP) |
 | Cross-site host reachability | All tested pairs succeed (5 router hops) |
+| Deploy from nothing to converged network | 25 s (measured)
 
 ## Run it
 Requirements: Linux (or WSL2) with Docker and Containerlab.
@@ -55,7 +56,7 @@ FRRouting 10.7.1 · whole lab ≈ 220 MiB RAM (measured with `docker stats`)
 ## Roadmap
 - [x] M0 — Environment and first lab
 - [x] M1 — Own topology, hand-written configs, OSPF/BGP up
-- [ ] M2 — YAML source of truth → Jinja2 templates → Ansible deployment
+- [x] M2 — YAML source of truth → Jinja2 templates → Ansible deployment
 - [ ] M3 — Python validator: intent vs live state
 - [ ] M4 — Fault injection (8 faults) and failover measurement
 - [ ] M5 — Results, limitations, reproduction guide

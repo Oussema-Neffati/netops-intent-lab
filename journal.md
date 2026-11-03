@@ -38,3 +38,11 @@
   cross-site pings OK (TTL 59 = 5 router hops).
 - Observation: WAN is active-active (ECMP over both providers), not active-standby.
 - M1 complete.
+
+## 2026-11-03 — M2 complete
+- deploy.yml: render → deploy/redeploy (handler) → convergence wait → backups.
+- Measured: from nothing to a converged network in 25.4 s (convergence ≈ 14 s).
+- Idempotence: second run changed=0 for the whole deployment.
+- Change test: one intent edit → 1 config regenerated → 1 redeploy → 1 backup updated.
+- Lesson: FRR rewrites configs (e.g. passive-interface → ip ospf passive per interface),
+  so validation must check live state, not config text.
