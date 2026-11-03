@@ -1,0 +1,17 @@
+- name: Render FRR configs from the intent file
+  hosts: routers
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - ../intent/network.yml
+
+  vars:
+    r: "{{ routers[inventory_hostname] }}"
+
+  tasks:
+    - name: Render the router config from the template
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/frr.conf.j2"
+        dest: "{{ playbook_dir }}/../configs/{{ inventory_hostname }}.conf"
+        mode: "0644"

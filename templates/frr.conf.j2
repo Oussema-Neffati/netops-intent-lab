@@ -1,0 +1,84 @@
+{# Jinja2 template: one FRR config per router, rendered from intent/network.yml #}
+frr version {{ frr_version }}
+frr defaults traditional
+hostname {{ inventory_hostname }}
+no ipv6 forwarding
+!
+{% for intf in r.interfaces %}
+interface {{ intf.name }}
+ description {{ intf.description }}
+ ip address {{ intf.ip }}
+{% if intf.ospf_p2p | default(false) %}
+ ip ospf network point-to-point
+{% endif %}
+!
+{% endfor %}
+interface lo
+ ip address {{ r.loopback }}
+!
+{% if r.static_routes is defined %}
+{% for route in r.static_routes %}
+ip route {{ route.prefix }} {{ route.next_hop }}
+{% endfor %}
+!
+{% endif %}
+{% if r.prefix_lists is defined %}
+{% for name, prefixes in r.prefix_lists.items() %}
+{% for prefix in prefixes %}
+ip prefix-list {{ name }} seq {{ loop.index * 10 }} permit {{ prefix }}
+{% endfor %}
+{% endfor %}
+!
+{% for name, plist in r.route_maps.items() %}
+route-map {{ name }} permit 10
+ match ip address prefix-list {{ plist }}
+!
+{% endfor %}
+{% endif %}
+router ospf
+ ospf router-id {{ r.ospf.router_id }}
+{% for intf in r.ospf.passive %}
+ passive-interface {{ intf }}
+{% endfor %}
+{% for net in r.ospf.networks %}
+ network {{ net }} area 0
+{% endfor %}
+{% if r.ospf.default_originate | default(false) %}
+ default-information originate
+{% endif %}
+!
+{% if r.bgp is defined %}
+router bgp {{ r.bgp.asn }}
+ bgp router-id {{ r.bgp.router_id }}
+{% for n in r.bgp.neighbors %}
+ neighbor {{ n.ip }} remote-as {{ n.remote_as }}
+ neighbor {{ n.ip }} description {{ n.description }}
+{% if n.update_source is defined %}
+ neighbor {{ n.ip }} update-source {{ n.update_source }}
+{% endif %}
+{% endfor %}
+ !
+ address-family ipv4 unicast
+{% for net in r.bgp.networks | default([]) %}
+  network {{ net }}
+{% endfor %}
+{% for n in r.bgp.neighbors %}
+  neighbor {{ n.ip }} activate
+{% if n.next_hop_self | default(false) %}
+  neighbor {{ n.ip }} next-hop-self
+{% endif %}
+{% if n.default_originate | default(false) %}
+  neighbor {{ n.ip }} default-originate
+{% endif %}
+{% if n.route_map_in is defined %}
+  neighbor {{ n.ip }} route-map {{ n.route_map_in }} in
+{% endif %}
+{% if n.route_map_out is defined %}
+  neighbor {{ n.ip }} route-map {{ n.route_map_out }} out
+{% endif %}
+{% endfor %}
+ exit-address-family
+!
+{% endif %}
+line vty
+!
