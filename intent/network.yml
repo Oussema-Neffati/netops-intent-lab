@@ -1,0 +1,139 @@
+# intent/network.yml
+# Single source of truth for netops-intent-lab.
+# Ansible renders router configs from this file (M2); the validator reads it
+# to know the expected state (M3). Edit data here, never the generated configs.
+
+frr_version: "10.7.1"
+
+routers:
+
+  # ---------------- Provider (AS 65000) ----------------
+  wan-p1:
+    interfaces:
+      - { name: eth1, description: "L1 to wan-p2", ip: 10.0.1.1/30, ospf_p2p: true }
+      - { name: eth2, description: "L2 to a-edge", ip: 10.0.2.1/30 }
+      - { name: eth3, description: "L4 to b-edge", ip: 10.0.4.1/30 }
+    loopback: 10.0.0.1/32
+    prefix_lists:
+      CUST-A-IN: [10.1.0.0/16]
+      CUST-B-IN: [10.2.0.0/16]
+      TO-CUST: [10.1.0.0/16, 10.2.0.0/16]
+    route_maps:
+      FROM-SITE-A: CUST-A-IN
+      FROM-SITE-B: CUST-B-IN
+      TO-CUSTOMER: TO-CUST
+    ospf:
+      router_id: 10.0.0.1
+      passive: [lo]
+      networks: [10.0.0.1/32, 10.0.1.0/30]
+    bgp:
+      asn: 65000
+      router_id: 10.0.0.1
+      neighbors:
+        - { ip: 10.0.0.2, remote_as: 65000, description: wan-p2, update_source: lo, next_hop_self: true }
+        - { ip: 10.0.2.2, remote_as: 65001, description: a-edge, default_originate: true, route_map_in: FROM-SITE-A, route_map_out: TO-CUSTOMER }
+        - { ip: 10.0.4.2, remote_as: 65002, description: b-edge, default_originate: true, route_map_in: FROM-SITE-B, route_map_out: TO-CUSTOMER }
+
+  wan-p2:
+    interfaces:
+      - { name: eth1, description: "L1 to wan-p1", ip: 10.0.1.2/30, ospf_p2p: true }
+      - { name: eth2, description: "L3 to a-edge", ip: 10.0.3.1/30 }
+      - { name: eth3, description: "L5 to b-edge", ip: 10.0.5.1/30 }
+    loopback: 10.0.0.2/32
+    prefix_lists:
+      CUST-A-IN: [10.1.0.0/16]
+      CUST-B-IN: [10.2.0.0/16]
+      TO-CUST: [10.1.0.0/16, 10.2.0.0/16]
+    route_maps:
+      FROM-SITE-A: CUST-A-IN
+      FROM-SITE-B: CUST-B-IN
+      TO-CUSTOMER: TO-CUST
+    ospf:
+      router_id: 10.0.0.2
+      passive: [lo]
+      networks: [10.0.0.2/32, 10.0.1.0/30]
+    bgp:
+      asn: 65000
+      router_id: 10.0.0.2
+      neighbors:
+        - { ip: 10.0.0.1, remote_as: 65000, description: wan-p1, update_source: lo, next_hop_self: true }
+        - { ip: 10.0.3.2, remote_as: 65001, description: a-edge, default_originate: true, route_map_in: FROM-SITE-A, route_map_out: TO-CUSTOMER }
+        - { ip: 10.0.5.2, remote_as: 65002, description: b-edge, default_originate: true, route_map_in: FROM-SITE-B, route_map_out: TO-CUSTOMER }
+
+  # ---------------- Site A (AS 65001) ----------------
+  a-edge:
+    interfaces:
+      - { name: eth1, description: "L2 to wan-p1", ip: 10.0.2.2/30 }
+      - { name: eth2, description: "L3 to wan-p2", ip: 10.0.3.2/30 }
+      - { name: eth3, description: "L6 to a-core", ip: 10.1.1.1/30, ospf_p2p: true }
+    loopback: 10.1.0.1/32
+    static_routes:
+      - { prefix: 10.1.0.0/16, next_hop: blackhole }
+    prefix_lists:
+      SITE-A-OUT: [10.1.0.0/16]
+      FROM-PROVIDER: [0.0.0.0/0, 10.2.0.0/16]
+    route_maps:
+      PROVIDER-IN: FROM-PROVIDER
+      PROVIDER-OUT: SITE-A-OUT
+    ospf:
+      router_id: 10.1.0.1
+      passive: [lo]
+      networks: [10.1.0.1/32, 10.1.1.0/30]
+      default_originate: true
+    bgp:
+      asn: 65001
+      router_id: 10.1.0.1
+      networks: [10.1.0.0/16]
+      neighbors:
+        - { ip: 10.0.2.1, remote_as: 65000, description: wan-p1, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT }
+        - { ip: 10.0.3.1, remote_as: 65000, description: wan-p2, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT }
+
+  a-core:
+    interfaces:
+      - { name: eth1, description: "L6 to a-edge", ip: 10.1.1.2/30, ospf_p2p: true }
+      - { name: eth2, description: "LAN1 to h-a1", ip: 10.1.10.1/24 }
+      - { name: eth3, description: "LAN2 to h-a2", ip: 10.1.20.1/24 }
+    loopback: 10.1.0.2/32
+    ospf:
+      router_id: 10.1.0.2
+      passive: [lo, eth2, eth3]
+      networks: [10.1.0.2/32, 10.1.1.0/30, 10.1.10.0/24, 10.1.20.0/24]
+
+  # ---------------- Site B (AS 65002) ----------------
+  b-edge:
+    interfaces:
+      - { name: eth1, description: "L4 to wan-p1", ip: 10.0.4.2/30 }
+      - { name: eth2, description: "L5 to wan-p2", ip: 10.0.5.2/30 }
+      - { name: eth3, description: "L7 to b-core", ip: 10.2.1.1/30, ospf_p2p: true }
+    loopback: 10.2.0.1/32
+    static_routes:
+      - { prefix: 10.2.0.0/16, next_hop: blackhole }
+    prefix_lists:
+      SITE-B-OUT: [10.2.0.0/16]
+      FROM-PROVIDER: [0.0.0.0/0, 10.1.0.0/16]
+    route_maps:
+      PROVIDER-IN: FROM-PROVIDER
+      PROVIDER-OUT: SITE-B-OUT
+    ospf:
+      router_id: 10.2.0.1
+      passive: [lo]
+      networks: [10.2.0.1/32, 10.2.1.0/30]
+      default_originate: true
+    bgp:
+      asn: 65002
+      router_id: 10.2.0.1
+      networks: [10.2.0.0/16]
+      neighbors:
+        - { ip: 10.0.4.1, remote_as: 65000, description: wan-p1, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT }
+        - { ip: 10.0.5.1, remote_as: 65000, description: wan-p2, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT }
+
+  b-core:
+    interfaces:
+      - { name: eth1, description: "L7 to b-edge", ip: 10.2.1.2/30, ospf_p2p: true }
+      - { name: eth2, description: "LAN1 to h-b1", ip: 10.2.10.1/24 }
+      - { name: eth3, description: "LAN2 to h-b2", ip: 10.2.20.1/24 }
+    loopback: 10.2.0.2/32
+    ospf:
+      router_id: 10.2.0.2
+      passive: [lo, eth2, eth3]
+      networks: [10.2.0.2/32, 10.2.1.0/30, 10.2.10.0/24, 10.2.20.0/24]
