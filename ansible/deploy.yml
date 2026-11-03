@@ -1,0 +1,74 @@
+- name: Deploy the network from the intent file
+  hosts: routers
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - ../intent/network.yml
+
+  vars:
+    r: "{{ routers[inventory_hostname] }}"
+    topology: "{{ playbook_dir }}/../topology/netops.clab.yml"
+    backup_dir: "{{ playbook_dir }}/../backups"
+
+  tasks:
+    # 1. Intent -> configs (same task as render.yml)
+    - name: Render the router config from the template
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/frr.conf.j2"
+        dest: "{{ playbook_dir }}/../configs/{{ inventory_hostname }}.conf"
+        mode: "0644"
+      notify: Redeploy the lab
+
+    # 2. Is the lab already running?
+    - name: Check whether the lab is running
+      ansible.builtin.command: docker ps --quiet --filter name=clab-netops-
+      register: lab_containers
+      changed_when: false
+      run_once: true
+
+    # 3a. Not running: build it from scratch
+    - name: Deploy the lab (it is not running)
+      ansible.builtin.command: containerlab deploy -t {{ topology }}
+      when: lab_containers.stdout == ""
+      run_once: true
+
+    # 3b. Running and a config changed: the handler redeploys it now
+    - name: Apply pending redeploy (only if a config changed)
+      ansible.builtin.meta: flush_handlers
+
+    # 4. Wait for routing to converge: a host in site A reaches a host in site B
+    - name: Wait until site A can reach site B
+      ansible.builtin.command: docker exec clab-netops-h-a1 ping -c 1 -W 1 10.2.10.10
+      register: ping
+      until: ping.rc == 0
+      retries: 60
+      delay: 2
+      changed_when: false
+      run_once: true
+
+    # 5. Backups: what each router is actually running
+    - name: Make sure the backup folder exists
+      ansible.builtin.file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: "0755"
+      run_once: true
+
+    - name: Read the running config from the router
+      ansible.builtin.command: >
+        docker exec clab-netops-{{ inventory_hostname }} vtysh -c "show running-config"
+      register: running
+      changed_when: false
+
+    - name: Save the running config as a backup
+      ansible.builtin.copy:
+        content: "{{ running.stdout }}\n"
+        dest: "{{ backup_dir }}/{{ inventory_hostname }}.conf"
+        mode: "0644"
+
+  handlers:
+    - name: Redeploy the lab
+      ansible.builtin.command: containerlab deploy -t {{ topology }} --reconfigure
+      when: lab_containers.stdout != ""
+      run_once: true
