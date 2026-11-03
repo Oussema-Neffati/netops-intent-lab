@@ -1,0 +1,70 @@
+{
+  "ipv4Unicast": {
+    "routerId": "10.2.0.1",
+    "as": 65002,
+    "vrfId": 0,
+    "vrfName": "default",
+    "tableVersion": 8,
+    "ribCount": 3,
+    "ribMemory": 480,
+    "peerCount": 2,
+    "peerMemory": 47056,
+    "peers": {
+      "10.0.4.1": {
+        "hostname": "wan-p1",
+        "domainname": "localdomain",
+        "softwareVersion": "n/a",
+        "remoteAs": 65000,
+        "localAs": 65002,
+        "version": 4,
+        "msgRcvd": 13,
+        "msgSent": 9,
+        "tableVersion": 8,
+        "outq": 0,
+        "inq": 0,
+        "peerUptime": "00:00:15",
+        "peerUptimeMsec": 15000,
+        "peerUptimeEstablishedEpoch": 1793732277,
+        "pfxRcd": 2,
+        "pfxSnt": 1,
+        "state": "Established",
+        "peerState": "OK",
+        "connectionsEstablished": 1,
+        "connectionsDropped": 0,
+        "desc": "wan-p1",
+        "idType": "ipv4"
+      },
+      "10.0.5.1": {
+        "hostname": "wan-p2",
+        "domainname": "localdomain",
+        "softwareVersion": "n/a",
+        "remoteAs": 65000,
+        "localAs": 65002,
+        "version": 4,
+        "msgRcvd": 15,
+        "msgSent": 11,
+        "tableVersion": 8,
+        "outq": 0,
+        "inq": 0,
+        "peerUptime": "00:00:15",
+        "peerUptimeMsec": 15000,
+        "peerUptimeEstablishedEpoch": 1793732277,
+        "pfxRcd": 2,
+        "pfxSnt": 1,
+        "state": "Established",
+        "peerState": "OK",
+        "connectionsEstablished": 1,
+        "connectionsDropped": 0,
+        "desc": "wan-p2",
+        "idType": "ipv4"
+      }
+    },
+    "failedPeers": 0,
+    "displayedPeers": 2,
+    "totalPeers": 2,
+    "dynamicPeers": 0,
+    "bestPath": {
+      "multiPathRelax": "false"
+    }
+  }
+}
