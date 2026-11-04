@@ -2,6 +2,7 @@
 # Single source of truth for netops-intent-lab.
 # Ansible renders router configs from this file (M2); the validator reads it
 # to know the expected state (M3). Edit data here, never the generated configs.
+# Keys starting with expect_ are used only by the validator (not by the template).
 
 frr_version: "10.7.1"
 
@@ -30,9 +31,9 @@ routers:
       asn: 65000
       router_id: 10.0.0.1
       neighbors:
-        - { ip: 10.0.0.2, remote_as: 65000, description: wan-p2, update_source: lo, next_hop_self: true }
-        - { ip: 10.0.2.2, remote_as: 65001, description: a-edge, default_originate: true, route_map_in: FROM-SITE-A, route_map_out: TO-CUSTOMER }
-        - { ip: 10.0.4.2, remote_as: 65002, description: b-edge, default_originate: true, route_map_in: FROM-SITE-B, route_map_out: TO-CUSTOMER }
+        - { ip: 10.0.0.2, remote_as: 65000, description: wan-p2, update_source: lo, next_hop_self: true, expect_prefixes: [10.1.0.0/16, 10.2.0.0/16] }
+        - { ip: 10.0.2.2, remote_as: 65001, description: a-edge, default_originate: true, route_map_in: FROM-SITE-A, route_map_out: TO-CUSTOMER, expect_prefixes: [10.1.0.0/16] }
+        - { ip: 10.0.4.2, remote_as: 65002, description: b-edge, default_originate: true, route_map_in: FROM-SITE-B, route_map_out: TO-CUSTOMER, expect_prefixes: [10.2.0.0/16] }
 
   wan-p2:
     interfaces:
@@ -56,9 +57,9 @@ routers:
       asn: 65000
       router_id: 10.0.0.2
       neighbors:
-        - { ip: 10.0.0.1, remote_as: 65000, description: wan-p1, update_source: lo, next_hop_self: true }
-        - { ip: 10.0.3.2, remote_as: 65001, description: a-edge, default_originate: true, route_map_in: FROM-SITE-A, route_map_out: TO-CUSTOMER }
-        - { ip: 10.0.5.2, remote_as: 65002, description: b-edge, default_originate: true, route_map_in: FROM-SITE-B, route_map_out: TO-CUSTOMER }
+        - { ip: 10.0.0.1, remote_as: 65000, description: wan-p1, update_source: lo, next_hop_self: true, expect_prefixes: [10.1.0.0/16, 10.2.0.0/16] }
+        - { ip: 10.0.3.2, remote_as: 65001, description: a-edge, default_originate: true, route_map_in: FROM-SITE-A, route_map_out: TO-CUSTOMER, expect_prefixes: [10.1.0.0/16] }
+        - { ip: 10.0.5.2, remote_as: 65002, description: b-edge, default_originate: true, route_map_in: FROM-SITE-B, route_map_out: TO-CUSTOMER, expect_prefixes: [10.2.0.0/16] }
 
   # ---------------- Site A (AS 65001) ----------------
   a-edge:
@@ -85,8 +86,8 @@ routers:
       router_id: 10.1.0.1
       networks: [10.1.0.0/16]
       neighbors:
-        - { ip: 10.0.2.1, remote_as: 65000, description: wan-p1, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT }
-        - { ip: 10.0.3.1, remote_as: 65000, description: wan-p2, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT }
+        - { ip: 10.0.2.1, remote_as: 65000, description: wan-p1, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT, expect_prefixes: [0.0.0.0/0, 10.2.0.0/16] }
+        - { ip: 10.0.3.1, remote_as: 65000, description: wan-p2, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT, expect_prefixes: [0.0.0.0/0, 10.2.0.0/16] }
 
   a-core:
     interfaces:
@@ -94,6 +95,7 @@ routers:
       - { name: eth2, description: "LAN1 to h-a1", ip: 10.1.10.1/24 }
       - { name: eth3, description: "LAN2 to h-a2", ip: 10.1.20.1/24 }
     loopback: 10.1.0.2/32
+    expect_default_route: ospf
     ospf:
       router_id: 10.1.0.2
       passive: [lo, eth2, eth3]
@@ -124,8 +126,8 @@ routers:
       router_id: 10.2.0.1
       networks: [10.2.0.0/16]
       neighbors:
-        - { ip: 10.0.4.1, remote_as: 65000, description: wan-p1, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT }
-        - { ip: 10.0.5.1, remote_as: 65000, description: wan-p2, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT }
+        - { ip: 10.0.4.1, remote_as: 65000, description: wan-p1, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT, expect_prefixes: [0.0.0.0/0, 10.1.0.0/16] }
+        - { ip: 10.0.5.1, remote_as: 65000, description: wan-p2, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT, expect_prefixes: [0.0.0.0/0, 10.1.0.0/16] }
 
   b-core:
     interfaces:
@@ -133,6 +135,7 @@ routers:
       - { name: eth2, description: "LAN1 to h-b1", ip: 10.2.10.1/24 }
       - { name: eth3, description: "LAN2 to h-b2", ip: 10.2.20.1/24 }
     loopback: 10.2.0.2/32
+    expect_default_route: ospf
     ospf:
       router_id: 10.2.0.2
       passive: [lo, eth2, eth3]
