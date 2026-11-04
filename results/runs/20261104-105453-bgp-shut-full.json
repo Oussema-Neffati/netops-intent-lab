@@ -1,0 +1,56 @@
+{
+  "timestamp": "20261104-105453",
+  "label": "bgp-shut",
+  "mode": "full",
+  "duration_s": 6.0,
+  "total": 40,
+  "passed": 35,
+  "fault_detected": true,
+  "failed_checks": [
+    {
+      "router": "wan-p1",
+      "check": "Prefixes received from wan-p2",
+      "expected": [
+        "10.1.0.0/16",
+        "10.2.0.0/16"
+      ],
+      "actual": [
+        "10.2.0.0/16"
+      ],
+      "passed": false
+    },
+    {
+      "router": "wan-p2",
+      "check": "BGP session with a-edge (10.0.3.2)",
+      "expected": "Established",
+      "actual": "Idle (Admin)",
+      "passed": false
+    },
+    {
+      "router": "wan-p2",
+      "check": "Prefixes received from a-edge",
+      "expected": [
+        "10.1.0.0/16"
+      ],
+      "actual": [],
+      "passed": false
+    },
+    {
+      "router": "a-edge",
+      "check": "BGP session with wan-p2 (10.0.3.1)",
+      "expected": "Established",
+      "actual": "Active",
+      "passed": false
+    },
+    {
+      "router": "a-edge",
+      "check": "Prefixes received from wan-p2",
+      "expected": [
+        "0.0.0.0/0",
+        "10.2.0.0/16"
+      ],
+      "actual": [],
+      "passed": false
+    }
+  ]
+}

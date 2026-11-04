@@ -140,3 +140,11 @@ routers:
       router_id: 10.2.0.2
       passive: [lo, eth2, eth3]
       networks: [10.2.0.2/32, 10.2.1.0/30, 10.2.10.0/24, 10.2.20.0/24]
+
+# ---------------- Endpoints: test hosts (used by the validator's reachability checks) ----------------
+# The topology file configures them; this section states what the validator expects.
+endpoints:
+  h-a1: { ip: 10.1.10.10/24, gateway: 10.1.10.1 }
+  h-a2: { ip: 10.1.20.10/24, gateway: 10.1.20.1 }
+  h-b1: { ip: 10.2.10.10/24, gateway: 10.2.10.1 }
+  h-b2: { ip: 10.2.20.10/24, gateway: 10.2.20.1 }

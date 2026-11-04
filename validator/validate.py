@@ -1,21 +1,30 @@
-"""M3.2: compare the live network with the intent and print a PASS/FAIL report.
+"""M3.3: compare the live network with the intent, print a report and save it.
 
-Run from the repo root:  python3 validator/validate.py
-Exit code: 0 if every check passes, 1 otherwise (useful for automation).
+Run from the repo root:
+    python3 validator/validate.py                      # all checks
+    python3 validator/validate.py --mode ping          # ping-only baseline
+    python3 validator/validate.py --label bgp-shut     # name the run (used in M4)
+
+Exit code: 0 if every check passes, 1 otherwise.
 """
 
+import argparse
+import json
 import sys
+import time
+from datetime import datetime
 from pathlib import Path
 
 import yaml
 
-from checks import check_bgp, check_default_route, check_ospf, result
+from checks import check_bgp, check_default_route, check_ospf, check_reachability, result
 
 REPO = Path(__file__).resolve().parent.parent
 INTENT_FILE = REPO / "intent" / "network.yml"
+RUNS_DIR = REPO / "results" / "runs"
 
 
-def run_checks(routers):
+def run_protocol_checks(routers):
     results = []
     for name, router in routers.items():
         try:
@@ -38,12 +47,47 @@ def print_report(results):
     print(f"\n{passed}/{len(results)} checks passed")
 
 
+def save_report(results, mode, label, duration):
+    RUNS_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    failed = [r for r in results if not r["passed"]]
+    report = {
+        "timestamp": stamp,
+        "label": label,
+        "mode": mode,
+        "duration_s": duration,
+        "total": len(results),
+        "passed": len(results) - len(failed),
+        "fault_detected": bool(failed),
+        "failed_checks": failed,
+    }
+    path = RUNS_DIR / f"{stamp}-{label}-{mode}.json"
+    path.write_text(json.dumps(report, indent=2))
+    return path
+
+
 def main():
+    parser = argparse.ArgumentParser(description="Validate the live network against the intent.")
+    parser.add_argument("--mode", choices=["full", "ping"], default="full",
+                        help="full: all checks (default). ping: reachability only, the baseline.")
+    parser.add_argument("--label", default="manual",
+                        help="short name for this run, without spaces (e.g. the injected fault)")
+    args = parser.parse_args()
+
     intent = yaml.safe_load(INTENT_FILE.read_text())
-    results = run_checks(intent["routers"])
+
+    start = time.monotonic()
+    results = []
+    if args.mode == "full":
+        results += run_protocol_checks(intent["routers"])
+    results += check_reachability(intent["endpoints"])
+    duration = round(time.monotonic() - start, 1)
+
     print_report(results)
-    all_passed = all(r["passed"] for r in results)
-    sys.exit(0 if all_passed else 1)
+    path = save_report(results, args.mode, args.label, duration)
+    print(f"Duration: {duration} s. Report saved to {path.relative_to(REPO)}")
+
+    sys.exit(0 if all(r["passed"] for r in results) else 1)
 
 
 if __name__ == "__main__":

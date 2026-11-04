@@ -7,7 +7,7 @@ whether the two match.
 
 import ipaddress
 
-from frr import vtysh_json
+from frr import ping, vtysh_json
 
 
 def result(router, check, expected, actual):
@@ -86,3 +86,16 @@ def check_default_route(name, router):
     selected = [entry for entry in entries if entry.get("selected")]
     protocol = selected[0].get("protocol", "?") if selected else "absent"
     return [result(name, "Default route source", router["expect_default_route"], protocol)]
+
+
+def check_reachability(hosts):
+    """Every host must reach every other host (the reachability matrix)."""
+    results = []
+    for source in hosts:
+        for target, target_data in hosts.items():
+            if source == target:
+                continue
+            ip = target_data["ip"].split("/")[0]
+            reachable = "reachable" if ping(source, ip) else "unreachable"
+            results.append(result(source, f"Ping {target} ({ip})", "reachable", reachable))
+    return results

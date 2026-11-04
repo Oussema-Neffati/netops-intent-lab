@@ -30,3 +30,14 @@ def vtysh_json(router, command):
         # FRR printed text instead of JSON (for example "% BGP instance not found")
         first_line = output.splitlines()[0]
         raise RuntimeError(f"{router}: '{command}' did not return JSON: {first_line}")
+
+
+def ping(host, destination):
+    """Ping a destination from a host container. True if at least one reply comes back."""
+    result = subprocess.run(
+        ["docker", "exec", LAB_PREFIX + host, "ping", "-c", "2", "-i", "0.2", "-W", "1", destination],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    return result.returncode == 0
