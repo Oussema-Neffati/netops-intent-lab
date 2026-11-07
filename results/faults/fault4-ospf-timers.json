@@ -4,9 +4,9 @@
   "topic": "OSPF adjacency requirements (hello/dead timers)",
   "description": "hello interval 5 s on a-edge eth3 (a-core keeps 10 s)",
   "validator_detected": true,
-  "validator_failed_checks": 11,
-  "validator_total_checks": 40,
+  "validator_failed_checks": 17,
+  "validator_total_checks": 52,
   "ping_detected": true,
   "ping_failed_checks": 8,
-  "recovery_s": 26
+  "recovery_s": 31
 }

@@ -1,0 +1,18 @@
+{
+  "timestamp": "20261107-150246",
+  "label": "fault7-missing-loopback",
+  "mode": "full",
+  "duration_s": 9.0,
+  "total": 52,
+  "passed": 51,
+  "fault_detected": true,
+  "failed_checks": [
+    {
+      "router": "h-a1",
+      "check": "Ping b-core loopback (10.2.0.2)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    }
+  ]
+}

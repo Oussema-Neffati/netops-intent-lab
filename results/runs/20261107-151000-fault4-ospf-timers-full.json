@@ -1,0 +1,130 @@
+{
+  "timestamp": "20261107-151000",
+  "label": "fault4-ospf-timers",
+  "mode": "full",
+  "duration_s": 19.0,
+  "total": 52,
+  "passed": 35,
+  "fault_detected": true,
+  "failed_checks": [
+    {
+      "router": "a-edge",
+      "check": "OSPF neighbour 10.1.0.2",
+      "expected": "Full",
+      "actual": "absent",
+      "passed": false
+    },
+    {
+      "router": "a-core",
+      "check": "OSPF neighbour 10.1.0.1",
+      "expected": "Full",
+      "actual": "absent",
+      "passed": false
+    },
+    {
+      "router": "a-core",
+      "check": "Default route source",
+      "expected": "ospf",
+      "actual": "absent",
+      "passed": false
+    },
+    {
+      "router": "h-a1",
+      "check": "Ping wan-p1 loopback (10.0.0.1)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    },
+    {
+      "router": "h-a1",
+      "check": "Ping wan-p2 loopback (10.0.0.2)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    },
+    {
+      "router": "h-a1",
+      "check": "Ping a-edge loopback (10.1.0.1)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    },
+    {
+      "router": "h-a1",
+      "check": "Ping b-edge loopback (10.2.0.1)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    },
+    {
+      "router": "h-a1",
+      "check": "Ping b-core loopback (10.2.0.2)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    },
+    {
+      "router": "h-b1",
+      "check": "Ping a-core loopback (10.1.0.2)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    },
+    {
+      "router": "h-a1",
+      "check": "Ping h-b1 (10.2.10.10)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    },
+    {
+      "router": "h-a1",
+      "check": "Ping h-b2 (10.2.20.10)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    },
+    {
+      "router": "h-a2",
+      "check": "Ping h-b1 (10.2.10.10)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    },
+    {
+      "router": "h-a2",
+      "check": "Ping h-b2 (10.2.20.10)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    },
+    {
+      "router": "h-b1",
+      "check": "Ping h-a1 (10.1.10.10)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    },
+    {
+      "router": "h-b1",
+      "check": "Ping h-a2 (10.1.20.10)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    },
+    {
+      "router": "h-b2",
+      "check": "Ping h-a1 (10.1.10.10)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    },
+    {
+      "router": "h-b2",
+      "check": "Ping h-a2 (10.1.20.10)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    }
+  ]
+}

@@ -4,9 +4,9 @@
   "topic": "OSPF adjacency requirements (MTU)",
   "description": "MTU lowered to 1400 on wan-p1 eth1 (neighbour keeps its MTU)",
   "validator_detected": true,
-  "validator_failed_checks": 2,
-  "validator_total_checks": 40,
+  "validator_failed_checks": 4,
+  "validator_total_checks": 52,
   "ping_detected": false,
   "ping_failed_checks": 0,
-  "recovery_s": 20
+  "recovery_s": 26
 }

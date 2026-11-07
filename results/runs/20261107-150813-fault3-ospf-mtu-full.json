@@ -1,0 +1,39 @@
+{
+  "timestamp": "20261107-150813",
+  "label": "fault3-ospf-mtu",
+  "mode": "full",
+  "duration_s": 8.1,
+  "total": 52,
+  "passed": 48,
+  "fault_detected": true,
+  "failed_checks": [
+    {
+      "router": "wan-p1",
+      "check": "OSPF neighbour 10.0.0.2",
+      "expected": "Full",
+      "actual": "ExStart",
+      "passed": false
+    },
+    {
+      "router": "wan-p2",
+      "check": "OSPF neighbour 10.0.0.1",
+      "expected": "Full",
+      "actual": "ExStart",
+      "passed": false
+    },
+    {
+      "router": "h-a1",
+      "check": "Ping wan-p2 loopback (10.0.0.2)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    },
+    {
+      "router": "h-b1",
+      "check": "Ping wan-p1 loopback (10.0.0.1)",
+      "expected": "reachable",
+      "actual": "unreachable",
+      "passed": false
+    }
+  ]
+}

@@ -4,9 +4,9 @@
   "topic": "OSPF areas",
   "description": "b-core puts link L7 in area 1 (b-edge keeps area 0)",
   "validator_detected": true,
-  "validator_failed_checks": 11,
-  "validator_total_checks": 40,
+  "validator_failed_checks": 17,
+  "validator_total_checks": 52,
   "ping_detected": true,
   "ping_failed_checks": 8,
-  "recovery_s": 26
+  "recovery_s": 32
 }

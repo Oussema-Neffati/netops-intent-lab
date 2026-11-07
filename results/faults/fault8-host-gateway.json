@@ -5,8 +5,8 @@
   "description": "h-b2 sends traffic to a wrong gateway (10.2.20.99)",
   "validator_detected": true,
   "validator_failed_checks": 6,
-  "validator_total_checks": 40,
+  "validator_total_checks": 52,
   "ping_detected": true,
   "ping_failed_checks": 6,
-  "recovery_s": 5
+  "recovery_s": 8
 }

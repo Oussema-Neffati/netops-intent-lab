@@ -5,8 +5,8 @@
   "description": "a-core no longer advertises LAN 10.1.20.0/24 (h-a2)",
   "validator_detected": true,
   "validator_failed_checks": 4,
-  "validator_total_checks": 40,
+  "validator_total_checks": 52,
   "ping_detected": true,
   "ping_failed_checks": 4,
-  "recovery_s": 5
+  "recovery_s": 8
 }

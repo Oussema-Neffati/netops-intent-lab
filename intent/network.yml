@@ -148,3 +148,8 @@ endpoints:
   h-a2: { ip: 10.1.20.10/24, gateway: 10.1.20.1 }
   h-b1: { ip: 10.2.10.10/24, gateway: 10.2.10.1 }
   h-b2: { ip: 10.2.20.10/24, gateway: 10.2.20.1 }
+
+# Hosts used to test that every router loopback is reachable (one per site).
+# Probing from the other site matters: a host always reaches its own gateway's
+# loopback, even when that loopback is not advertised.
+loopback_probes: [h-a1, h-b1]

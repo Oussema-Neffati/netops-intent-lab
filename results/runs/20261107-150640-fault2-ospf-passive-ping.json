@@ -1,0 +1,10 @@
+{
+  "timestamp": "20261107-150640",
+  "label": "fault2-ospf-passive",
+  "mode": "ping",
+  "duration_s": 3.2,
+  "total": 12,
+  "passed": 12,
+  "fault_detected": false,
+  "failed_checks": []
+}

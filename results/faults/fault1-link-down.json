@@ -5,8 +5,8 @@
   "description": "WAN link L2 shut down (wan-p1 eth2, towards a-edge)",
   "validator_detected": true,
   "validator_failed_checks": 5,
-  "validator_total_checks": 40,
+  "validator_total_checks": 52,
   "ping_detected": false,
   "ping_failed_checks": 0,
-  "recovery_s": 20
+  "recovery_s": 26
 }

@@ -17,7 +17,8 @@ from pathlib import Path
 
 import yaml
 
-from checks import check_bgp, check_default_route, check_ospf, check_reachability, result
+from checks import (check_bgp, check_default_route, check_loopbacks, check_ospf,
+                    check_reachability, result)
 
 REPO = Path(__file__).resolve().parent.parent
 INTENT_FILE = REPO / "intent" / "network.yml"
@@ -82,6 +83,7 @@ def main():
     results = []
     if args.mode == "full":
         results += run_protocol_checks(intent["routers"])
+        results += check_loopbacks(intent["routers"], intent["loopback_probes"])
     results += check_reachability(intent["endpoints"])
     duration = round(time.monotonic() - start, 1)
 

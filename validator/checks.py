@@ -99,3 +99,14 @@ def check_reachability(hosts):
             reachable = "reachable" if ping(source, ip) else "unreachable"
             results.append(result(source, f"Ping {target} ({ip})", "reachable", reachable))
     return results
+
+
+def check_loopbacks(routers, probes):
+    """Every router loopback must be reachable from each probe host."""
+    results = []
+    for source in probes:
+        for name, router in routers.items():
+            ip = router["loopback"].split("/")[0]
+            reachable = "reachable" if ping(source, ip) else "unreachable"
+            results.append(result(source, f"Ping {name} loopback ({ip})", "reachable", reachable))
+    return results
