@@ -10,7 +10,7 @@ CCNA-level faults.**
 | Validation | **52 checks in ~9 s** (OSPF, BGP, routes, loopbacks, host reachability) |
 | CCNA-level faults detected | **Validator 8/8 · ping-only test 4/8** |
 
-![Topology in Containerlab](docs/images/topology.png)
+![Topology in Containerlab]()
 
 ## Engineering question
 In a dual-homed two-site network, can automated **intent-based validation**
