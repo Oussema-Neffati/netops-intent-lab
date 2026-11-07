@@ -24,27 +24,6 @@ ping working. Only state validation caught them.
 
 ## The network
 
-```mermaid
-graph TD
-  subgraph PROV["Provider (AS 65000): OSPF + iBGP"]
-    P1[wan-p1] --- P2[wan-p2]
-  end
-  subgraph SA["Site A (AS 65001): OSPF area 0"]
-    AE[a-edge] --- AC[a-core]
-    AC --- HA1[h-a1]
-    AC --- HA2[h-a2]
-  end
-  subgraph SB["Site B (AS 65002): OSPF area 0"]
-    BE[b-edge] --- BC[b-core]
-    BC --- HB1[h-b1]
-    BC --- HB2[h-b2]
-  end
-  AE ---|eBGP| P1
-  AE ---|eBGP| P2
-  BE ---|eBGP| P1
-  BE ---|eBGP| P2
-```
-
 - **10 nodes:** 6 FRRouting routers and 4 Linux hosts, about 220 MiB of RAM in total.
 - **Inside each site:** OSPF area 0, point-to-point links, passive host LANs,
   loopbacks advertised; the edge injects a default route towards the core.
@@ -56,17 +35,12 @@ Addressing plan, interface map and the reason behind each design choice:
 
 ## The pipeline
 
-```mermaid
-flowchart LR
-  I["intent/network.yml<br/>(source of truth)"] --> R["Ansible + Jinja2<br/>render"]
-  T["templates/frr.conf.j2"] --> R
-  R --> C["configs/*.conf"]
-  C --> D["Containerlab<br/>deploy"]
-  D --> L["Live lab<br/>FRR: OSPF + BGP"]
-  L --> B["backups/"]
-  I --> V["Python validator"]
-  L --> V
-  V --> O["PASS / FAIL report<br/>+ exit code"]
+```
+intent/network.yml ─► Ansible + Jinja2 ─► configs/*.conf ─► Containerlab ─► live lab (FRR)
+        │                                                                       │
+        └─────────────────────► Python validator ◄──────────────────────────────┘
+                                       │
+                          PASS/FAIL report + exit code
 ```
 
 1. **Intent:** `intent/network.yml` describes every router as data (interfaces,
