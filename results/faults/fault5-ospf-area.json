@@ -1,0 +1,12 @@
+{
+  "number": 5,
+  "name": "ospf-area",
+  "topic": "OSPF areas",
+  "description": "b-core puts link L7 in area 1 (b-edge keeps area 0)",
+  "validator_detected": true,
+  "validator_failed_checks": 11,
+  "validator_total_checks": 40,
+  "ping_detected": true,
+  "ping_failed_checks": 8,
+  "recovery_s": 26
+}

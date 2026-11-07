@@ -1,0 +1,56 @@
+{
+  "timestamp": "20261107-120907",
+  "label": "fault1-link-down",
+  "mode": "full",
+  "duration_s": 4.8,
+  "total": 40,
+  "passed": 35,
+  "fault_detected": true,
+  "failed_checks": [
+    {
+      "router": "wan-p1",
+      "check": "BGP session with a-edge (10.0.2.2)",
+      "expected": "Established",
+      "actual": "Active",
+      "passed": false
+    },
+    {
+      "router": "wan-p1",
+      "check": "Prefixes received from a-edge",
+      "expected": [
+        "10.1.0.0/16"
+      ],
+      "actual": [],
+      "passed": false
+    },
+    {
+      "router": "wan-p2",
+      "check": "Prefixes received from wan-p1",
+      "expected": [
+        "10.1.0.0/16",
+        "10.2.0.0/16"
+      ],
+      "actual": [
+        "10.2.0.0/16"
+      ],
+      "passed": false
+    },
+    {
+      "router": "a-edge",
+      "check": "BGP session with wan-p1 (10.0.2.1)",
+      "expected": "Established",
+      "actual": "Active",
+      "passed": false
+    },
+    {
+      "router": "a-edge",
+      "check": "Prefixes received from wan-p1",
+      "expected": [
+        "0.0.0.0/0",
+        "10.2.0.0/16"
+      ],
+      "actual": [],
+      "passed": false
+    }
+  ]
+}

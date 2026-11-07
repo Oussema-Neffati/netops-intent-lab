@@ -20,17 +20,24 @@
         mode: "0644"
       notify: Redeploy the lab
 
-    # 2. Is the lab already running?
-    - name: Check whether the lab is running
-      ansible.builtin.command: docker ps --quiet --filter name=clab-netops-
-      register: lab_containers
+    # 2. Is the lab running WITH its links? (after a restart, containers return without links)
+    - name: Check whether the lab is running with its links
+      ansible.builtin.command: docker exec clab-netops-a-edge ip link show eth1
+      register: lab_check
+      failed_when: false
       changed_when: false
       run_once: true
 
-    # 3a. Not running: build it from scratch
-    - name: Deploy the lab (it is not running)
+    # 3a. Missing or broken: remove any leftovers, then build it from scratch
+    - name: Remove a broken lab (containers without links)
+      ansible.builtin.command: containerlab destroy -t {{ topology }} --cleanup
+      when: lab_check.rc != 0
+      failed_when: false
+      run_once: true
+
+    - name: Deploy the lab
       ansible.builtin.command: containerlab deploy -t {{ topology }}
-      when: lab_containers.stdout == ""
+      when: lab_check.rc != 0
       run_once: true
 
     # 3b. Running and a config changed: the handler redeploys it now
@@ -70,5 +77,5 @@
   handlers:
     - name: Redeploy the lab
       ansible.builtin.command: containerlab deploy -t {{ topology }} --reconfigure
-      when: lab_containers.stdout != ""
+      when: lab_check.rc == 0
       run_once: true

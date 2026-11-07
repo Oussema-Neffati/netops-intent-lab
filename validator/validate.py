@@ -72,6 +72,8 @@ def main():
                         help="full: all checks (default). ping: reachability only, the baseline.")
     parser.add_argument("--label", default="manual",
                         help="short name for this run, without spaces (e.g. the injected fault)")
+    parser.add_argument("--no-save", action="store_true",
+                        help="do not write a report file (used for quick health checks)")
     args = parser.parse_args()
 
     intent = yaml.safe_load(INTENT_FILE.read_text())
@@ -84,8 +86,11 @@ def main():
     duration = round(time.monotonic() - start, 1)
 
     print_report(results)
-    path = save_report(results, args.mode, args.label, duration)
-    print(f"Duration: {duration} s. Report saved to {path.relative_to(REPO)}")
+    if args.no_save:
+        print(f"Duration: {duration} s.")
+    else:
+        path = save_report(results, args.mode, args.label, duration)
+        print(f"Duration: {duration} s. Report saved to {path.relative_to(REPO)}")
 
     sys.exit(0 if all(r["passed"] for r in results) else 1)
 

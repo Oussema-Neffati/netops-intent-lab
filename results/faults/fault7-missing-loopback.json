@@ -1,0 +1,12 @@
+{
+  "number": 7,
+  "name": "missing-loopback",
+  "topic": "OSPF configuration (loopbacks)",
+  "description": "b-core no longer advertises its loopback 10.2.0.2/32",
+  "validator_detected": false,
+  "validator_failed_checks": 0,
+  "validator_total_checks": 40,
+  "ping_detected": false,
+  "ping_failed_checks": 0,
+  "recovery_s": 5
+}

@@ -1,0 +1,12 @@
+{
+  "number": 2,
+  "name": "ospf-passive",
+  "topic": "OSPF passive interfaces",
+  "description": "passive-interface on the provider core link (wan-p1 eth1)",
+  "validator_detected": true,
+  "validator_failed_checks": 2,
+  "validator_total_checks": 40,
+  "ping_detected": false,
+  "ping_failed_checks": 0,
+  "recovery_s": 20
+}

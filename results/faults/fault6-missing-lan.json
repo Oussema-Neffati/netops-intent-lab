@@ -1,0 +1,12 @@
+{
+  "number": 6,
+  "name": "missing-lan",
+  "topic": "OSPF configuration (network statement)",
+  "description": "a-core no longer advertises LAN 10.1.20.0/24 (h-a2)",
+  "validator_detected": true,
+  "validator_failed_checks": 4,
+  "validator_total_checks": 40,
+  "ping_detected": true,
+  "ping_failed_checks": 4,
+  "recovery_s": 5
+}
