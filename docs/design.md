@@ -1,8 +1,6 @@
 # Network Design — netops-intent-lab
 
-Status: design for Milestone 1 (hand-written configs). This document is also the
-first version of the network's **intent**: the "Expected state" section becomes
-the YAML source of truth (M2) and the validator's checks (M3).
+Status: final design.
 
 ## 1. Topology
 
