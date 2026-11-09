@@ -73,7 +73,9 @@
       "position": {
         "x": 500,
         "y": 240
-      }
+      },
+      "icon": "cloud",
+      "iconCornerRadius": 0
     },
     {
       "id": "isp1",

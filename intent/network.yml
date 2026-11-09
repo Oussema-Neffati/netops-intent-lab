@@ -64,13 +64,14 @@ routers:
       - { name: eth1, description: "W1 to isp1", ip: 10.0.1.2/30 }
       - { name: eth2, description: "A1 to a-core1", ip: 10.1.1.1/30, ospf_p2p: true }
       - { name: eth3, description: "A2 to a-core2", ip: 10.1.1.5/30, ospf_p2p: true }
+      - { name: eth4, description: "A5 to a-edge2", ip: 10.1.1.17/30, ospf_p2p: true }
     loopback: 10.1.0.1/32
     static_routes: [{ prefix: 10.1.0.0/16, next_hop: blackhole }]
     prefix_lists: { SITE-OUT: [10.1.0.0/16], FROM-PROVIDER: [0.0.0.0/0, 10.2.0.0/16] }
     route_maps: { PROVIDER-IN: FROM-PROVIDER, PROVIDER-OUT: SITE-OUT }
     ospf:
       router_id: 10.1.0.1
-      networks: [10.1.0.1/32, 10.1.1.0/30, 10.1.1.4/30]
+      networks: [10.1.0.1/32, 10.1.1.0/30, 10.1.1.4/30, 10.1.1.16/30]
       default_originate: true
     bgp:
       asn: 65001
@@ -89,13 +90,14 @@ routers:
       - { name: eth1, description: "W2 to isp2", ip: 10.0.2.2/30 }
       - { name: eth2, description: "A3 to a-core1", ip: 10.1.1.9/30, ospf_p2p: true }
       - { name: eth3, description: "A4 to a-core2", ip: 10.1.1.13/30, ospf_p2p: true }
+      - { name: eth4, description: "A5 to a-edge1", ip: 10.1.1.18/30, ospf_p2p: true }
     loopback: 10.1.0.2/32
     static_routes: [{ prefix: 10.1.0.0/16, next_hop: blackhole }]
     prefix_lists: { SITE-OUT: [10.1.0.0/16], FROM-PROVIDER: [0.0.0.0/0, 10.2.0.0/16] }
     route_maps: { PROVIDER-IN: FROM-PROVIDER, PROVIDER-OUT: SITE-OUT }
     ospf:
       router_id: 10.1.0.2
-      networks: [10.1.0.2/32, 10.1.1.8/30, 10.1.1.12/30]
+      networks: [10.1.0.2/32, 10.1.1.8/30, 10.1.1.12/30, 10.1.1.16/30]
       default_originate: true
     bgp:
       asn: 65001
@@ -147,13 +149,14 @@ routers:
       - { name: eth1, description: "W3 to isp1", ip: 10.0.3.2/30 }
       - { name: eth2, description: "B1 to b-core1", ip: 10.2.1.1/30, ospf_p2p: true }
       - { name: eth3, description: "B2 to b-core2", ip: 10.2.1.5/30, ospf_p2p: true }
+      - { name: eth4, description: "B5 to b-edge2", ip: 10.2.1.17/30, ospf_p2p: true }
     loopback: 10.2.0.1/32
     static_routes: [{ prefix: 10.2.0.0/16, next_hop: blackhole }]
     prefix_lists: { SITE-OUT: [10.2.0.0/16], FROM-PROVIDER: [0.0.0.0/0, 10.1.0.0/16] }
     route_maps: { PROVIDER-IN: FROM-PROVIDER, PROVIDER-OUT: SITE-OUT }
     ospf:
       router_id: 10.2.0.1
-      networks: [10.2.0.1/32, 10.2.1.0/30, 10.2.1.4/30]
+      networks: [10.2.0.1/32, 10.2.1.0/30, 10.2.1.4/30, 10.2.1.16/30]
       default_originate: true
     bgp:
       asn: 65002
@@ -172,13 +175,14 @@ routers:
       - { name: eth1, description: "W4 to isp2", ip: 10.0.4.2/30 }
       - { name: eth2, description: "B3 to b-core1", ip: 10.2.1.9/30, ospf_p2p: true }
       - { name: eth3, description: "B4 to b-core2", ip: 10.2.1.13/30, ospf_p2p: true }
+      - { name: eth4, description: "B5 to b-edge1", ip: 10.2.1.18/30, ospf_p2p: true }
     loopback: 10.2.0.2/32
     static_routes: [{ prefix: 10.2.0.0/16, next_hop: blackhole }]
     prefix_lists: { SITE-OUT: [10.2.0.0/16], FROM-PROVIDER: [0.0.0.0/0, 10.1.0.0/16] }
     route_maps: { PROVIDER-IN: FROM-PROVIDER, PROVIDER-OUT: SITE-OUT }
     ospf:
       router_id: 10.2.0.2
-      networks: [10.2.0.2/32, 10.2.1.8/30, 10.2.1.12/30]
+      networks: [10.2.0.2/32, 10.2.1.8/30, 10.2.1.12/30, 10.2.1.16/30]
       default_originate: true
     bgp:
       asn: 65002
@@ -250,10 +254,12 @@ links:
   - [a-edge1:eth3, a-core2:eth1]  # A2
   - [a-edge2:eth2, a-core1:eth2]  # A3
   - [a-edge2:eth3, a-core2:eth2]  # A4
+  - [a-edge1:eth4, a-edge2:eth4]  # A5 edge cross-link
   - [b-edge1:eth2, b-core1:eth1]  # B1
   - [b-edge1:eth3, b-core2:eth1]  # B2
   - [b-edge2:eth2, b-core1:eth2]  # B3
   - [b-edge2:eth3, b-core2:eth2]  # B4
+  - [b-edge1:eth4, b-edge2:eth4]  # B5 edge cross-link
   - [a-core1:eth3, a-sw1:eth1]    # trunk
   - [a-core2:eth3, a-sw1:eth2]    # trunk
   - [a-sw1:eth3, h-a1:eth1]       # access VLAN 10

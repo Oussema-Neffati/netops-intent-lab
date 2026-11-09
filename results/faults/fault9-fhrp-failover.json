@@ -1,0 +1,12 @@
+{
+  "number": 9,
+  "name": "fhrp-failover",
+  "topic": "First-hop redundancy (VRRP)",
+  "description": "a-core1 loses its trunk to a-sw1: a-core2 must take over the gateway",
+  "validator_detected": true,
+  "validator_failed_checks": 6,
+  "validator_total_checks": 100,
+  "ping_detected": false,
+  "ping_failed_checks": 0,
+  "recovery_s": 33
+}

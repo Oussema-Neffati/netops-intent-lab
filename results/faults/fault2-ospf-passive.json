@@ -1,0 +1,12 @@
+{
+  "number": 2,
+  "name": "ospf-passive",
+  "topic": "OSPF passive interfaces",
+  "description": "passive-interface on a router-to-router link (a-edge1 eth2, link A1)",
+  "validator_detected": true,
+  "validator_failed_checks": 5,
+  "validator_total_checks": 100,
+  "ping_detected": false,
+  "ping_failed_checks": 0,
+  "recovery_s": 33
+}

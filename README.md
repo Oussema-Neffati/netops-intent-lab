@@ -6,9 +6,9 @@ CCNA-level faults.**
 
 | Result (v2) | Value |
 |---|---|
-| Deploy from nothing to a converged network | **~[T] s** (one command, idempotent re-runs: `changed=0`) |
-| Validation | **96 checks in ~[N] s** (OSPF, BGP, BFD, redundant paths, VRRP, reachability) |
-| CCNA-level faults detected | **Validator [V]/9 · ping-only check [P]/9** |
+| Deploy from nothing to a **validated** network | **~70 s** (one command; the deploy waits until all checks pass) |
+| Validation | **100 checks in ~12 s** (OSPF, BGP, BFD, redundant paths, VRRP, reachability) |
+| CCNA-level faults detected | **Validator 9/9 · ping-only check 1/9** |
 
 ![Topology in Containerlab](docs/images/topology.png)
 
@@ -17,15 +17,22 @@ In a redundant two-site network, can automated **intent-based validation**
 (desired state in YAML compared against live protocol state) detect and localise
 faults that a ping-based check misses, and how fast is a full deploy → verify cycle?
 
-**Answer (measured):** [to be written from the v2 fault ledger]
+**Answer (measured):** yes. In this redundant design, a ping-only check detected
+**1 of 9** CCNA-level faults (a host with a wrong gateway); the validator detected
+and localised **all 9**. Redundancy keeps traffic flowing, so a fault that silently
+removes a backup path, an adjacency, a gateway role or a loopback is invisible to
+ping. Only state validation shows that the network no longer matches its design.
+
+The campaign also found a real **design bug**: in the first version of v2, losing
+one WAN link created a routing loop (see *What the fault campaign found* below).
 
 ## The network
 
 ![Network diagram](docs/images/network-diagram.png)
 
-- **16 nodes:** 10 FRRouting routers, 2 access switches, 4 hosts.
+- **16 nodes:** 10 FRRouting routers, 2 access switches, 4 hosts, 22 links.
 - **Two independent providers** (AS 65010 and AS 65020); each site has **two edge
-  routers**, one per provider, linked by iBGP.
+  routers**, one per provider, directly connected and running iBGP.
 - **Inside each site:** two core routers in a full OSPF mesh with both edges,
   **VRRP** as the hosts' redundant gateway, and an access switch carrying
   **VLANs 10 and 20** on 802.1Q trunks to both cores.
@@ -57,7 +64,7 @@ intent/network.yml ─► Ansible + Jinja2 ─► configs/*.conf + topology ─�
 
 | Checks | Count |
 |---|---|
-| OSPF neighbours Full (derived from the intent's subnets) | 16 |
+| OSPF neighbours Full (derived from the intent's subnets) | 20 |
 | BGP sessions Established | 12 |
 | Prefixes received from each BGP neighbour | 12 |
 | BFD sessions up (eBGP, both sides) | 8 |
@@ -65,7 +72,7 @@ intent/network.yml ─► Ansible + Jinja2 ─► configs/*.conf + topology ─�
 | VRRP roles (Master/Backup) | 8 |
 | Site router loopbacks reachable from each site | 16 |
 | Host-to-host reachability matrix | 12 |
-| **Total** | **96** |
+| **Total** | **100** |
 
 `--mode ping` runs only the 12 host-to-host pings: the **baseline**, i.e. what a
 reachability-only check (as used by simple ping monitoring) sees.
@@ -77,18 +84,33 @@ the network is healthy again.
 
 | # | Fault | CCNA topic | Ping only | Validator |
 |---|---|---|---|---|
-| 1 | WAN link shut down | Interface status, redundancy | | |
-| 2 | `passive-interface` on a router-to-router link | OSPF passive interfaces | | |
-| 3 | MTU mismatch between OSPF neighbours | OSPF adjacency requirements | | |
-| 4 | Hello timer mismatch | OSPF adjacency requirements | | |
-| 5 | Area mismatch | OSPF areas | | |
-| 6 | Missing `network` statement for a VLAN | OSPF configuration | | |
-| 7 | Missing `network` statement for a loopback | OSPF configuration | | |
-| 8 | Wrong default gateway on a host | IP addressing | | |
-| 9 | Active gateway loses its LAN link | First-hop redundancy (VRRP) | | |
-| | **Total** | | **[P]/9** | **[V]/9** |
+| 1 | WAN link shut down | Interface status, redundancy | missed | detected |
+| 2 | `passive-interface` on a router-to-router link | OSPF passive interfaces | missed | detected |
+| 3 | MTU mismatch between OSPF neighbours | OSPF adjacency requirements | missed | detected |
+| 4 | Hello timer mismatch | OSPF adjacency requirements | missed | detected |
+| 5 | Area mismatch | OSPF areas | missed | detected |
+| 6 | Missing `network` statement for a VLAN (one core) | OSPF configuration | missed | detected |
+| 7 | Missing `network` statement for a loopback | OSPF configuration | missed | detected |
+| 8 | Wrong default gateway on a host | IP addressing | detected | detected |
+| 9 | Active gateway loses its LAN link (VRRP takeover) | First-hop redundancy (VRRP) | missed | detected |
+| | **Total** | | **1/9** | **9/9** |
 
 Full ledger: [`results/fault-ledger.md`](results/fault-ledger.md).
+
+### What the fault campaign found
+The first run of the v2 campaign showed fault 1 (one WAN link down) **breaking**
+traffic between the sites, which a redundant design must not do. Cause: the two
+edge routers of a site reached each other's loopback (their iBGP next hop) only
+**through the core routers**, which do not run BGP. A packet sent towards the
+other edge was routed by the core using its default route, back to the first
+edge: a **routing loop**. Fix: a direct link between the two edges of each site
+(A5, B5), the standard design. After the fix, fault 1 is invisible to users and
+still detected by the validator.
+
+Two other problems were found and fixed while bringing up VRRP: the VRRP virtual
+interface failed to create with an IPv6-only option, and a /24 virtual IP made the
+Backup router forward with the virtual MAC, which moved the gateway MAC between
+switch ports. The virtual IP is now a /32.
 
 ### History: v1
 v1 had one provider and one edge and one core per site. Its campaign (8 faults)
@@ -144,5 +166,5 @@ docs/        design document and images
 - Run the validator before and after every change (CI pipeline).
 
 ## Environment
-Windows 11 · WSL2 · Containerlab 0.82.0 · Docker 27.5.1 · FRRouting 10.7.1 ·
+Windows 11 · WSL2 · Containerlab 0.83.0 · Docker 27.5.1 · FRRouting 10.7.1 ·
 ansible-core 2.19 · Python 3.11

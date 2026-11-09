@@ -15,7 +15,7 @@ routers, gateway redundancy (VRRP) and an access switch with VLANs.
            │          └──────────┐   ┌──────────┘          │
        W1  │                 W3  │   │  W4                 │ W2
            │                     │   │                     │
-   ┌───── a-edge1 ── iBGP ── a-edge2 ┐  ┌ b-edge1 ── iBGP ── b-edge2 ─────┐
+   ┌───── a-edge1 ══ A5 ═══ a-edge2 ┐  ┌ b-edge1 ══ B5 ═══ b-edge2 ─────┐
    │        │   ╲          ╱   │     │  │   │   ╲          ╱   │          │
    │        │     ╲      ╱     │     │  │   │     ╲      ╱     │          │
    │      a-core1 ═VRRP═ a-core2     │  │ b-core1 ═VRRP═ b-core2          │
@@ -28,15 +28,16 @@ routers, gateway redundancy (VRRP) and an access switch with VLANs.
 
 - **Providers:** isp1 and isp2 are independent (different AS numbers, no link
   between them). Each connects one edge router in each site.
-- **Edge routers:** each site has two, each connected to a different provider.
-  They exchange routes with iBGP between their loopbacks.
+- **Edge routers:** each site has two, each connected to a different provider,
+  **directly connected to each other** (A5/B5) and exchanging routes with iBGP
+  between their loopbacks.
 - **Core routers:** each site has two, each connected to both edges (full mesh,
   4 OSPF links per site). They are the hosts' gateways, made redundant with VRRP.
 - **Access switch:** one per site, carrying VLAN 10 and VLAN 20 on 802.1Q trunks
   to both cores. Implemented as a Linux container with one bridge per VLAN.
 - **Hosts:** Linux containers, one per VLAN, using the VRRP virtual IP as gateway.
 
-16 nodes: 10 FRRouting routers, 2 switches, 4 hosts.
+16 nodes: 10 FRRouting routers, 2 switches, 4 hosts; 22 links.
 
 ## 2. Addressing plan
 
@@ -54,9 +55,10 @@ Second octet = owner: **10.0 = providers, 10.1 = site A, 10.2 = site B.**
 | A2 a-edge1 ↔ a-core2 | 10.1.1.4/30 | edge .5 · core .6 |
 | A3 a-edge2 ↔ a-core1 | 10.1.1.8/30 | edge .9 · core .10 |
 | A4 a-edge2 ↔ a-core2 | 10.1.1.12/30 | edge .13 · core .14 |
+| A5 a-edge1 ↔ a-edge2 | 10.1.1.16/30 | edge1 .17 · edge2 .18 |
 | Site A VLAN 10 | 10.1.10.0/24 | VIP .1 · a-core1 .2 · a-core2 .3 · h-a1 .10 |
 | Site A VLAN 20 | 10.1.20.0/24 | VIP .1 · a-core1 .2 · a-core2 .3 · h-a2 .10 |
-| Site B | 10.2.x.x | same structure as site A (B1–B4, VLANs 10 and 20) |
+| Site B | 10.2.x.x | same structure as site A (B1–B5, VLANs 10 and 20) |
 
 **Why /30 on links:** kept on purpose for readability (the CCNA convention).
 In production, /31 point-to-point links (RFC 3021) would halve their address use.
@@ -69,8 +71,8 @@ In production, /31 point-to-point links (RFC 3021) would halve their address use
 |---|---|---|---|---|
 | isp1 | a-edge1 (W1) | b-edge1 (W3) | | |
 | isp2 | a-edge2 (W2) | b-edge2 (W4) | | |
-| x-edge1 | isp1 | x-core1 | x-core2 | |
-| x-edge2 | isp2 | x-core1 | x-core2 | |
+| x-edge1 | isp1 | x-core1 | x-core2 | x-edge2 (cross-link) |
+| x-edge2 | isp2 | x-core1 | x-core2 | x-edge1 (cross-link) |
 | x-core1 / x-core2 | x-edge1 | x-edge2 | trunk to x-sw1 (eth3.10, eth3.20) | |
 | x-sw1 | trunk x-core1 | trunk x-core2 | access VLAN 10 (h-x1) | access VLAN 20 (h-x2) |
 
@@ -86,6 +88,11 @@ In production, /31 point-to-point links (RFC 3021) would halve their address use
 ### 4.2 Edge routers
 - **eBGP** to their provider; **iBGP between the two edges of a site**, over
   loopbacks (`update-source lo`, `next-hop-self`).
+- **A direct cross-link between the two edges** (A5/B5, in OSPF).
+  *Why:* the cores do not run BGP. Without the cross-link, an edge reaches the
+  other edge's loopback (its iBGP next hop) through a core, and the core, which
+  only has a default route, can send the packet straight back: a routing loop.
+  The fault campaign found exactly this when one WAN link failed (section 9).
   *Why iBGP:* if a-edge1 loses its provider, it still learns site B's summary
   and the default route from a-edge2, so traffic arriving at a-edge1 is not
   dropped.
@@ -137,11 +144,11 @@ v2 removes the single points of failure of v1. Still deliberately out of scope:
 - **Management plane:** routers are reached with `docker exec`; no NTP, syslog,
   AAA or SNMP inside the lab.
 
-## 7. Expected state (intent v2): 96 checks
+## 7. Expected state (intent v2): 100 checks
 
 | Check | Count | Expected |
 |---|---|---|
-| OSPF neighbours (derived from the p2p subnets) | 16 | Full, authenticated |
+| OSPF neighbours (derived from the p2p subnets) | 20 | Full, authenticated |
 | BGP sessions (eBGP + iBGP) | 12 | Established |
 | Prefixes received per BGP neighbour | 12 | exactly the expected list |
 | BFD sessions (eBGP, both sides) | 8 | up |
@@ -161,3 +168,14 @@ routes, summarization, VLANs and 802.1Q trunks, first-hop redundancy (VRRP/HSRP)
 loopbacks.
 Beyond CCNA: eBGP and iBGP, next-hop-self, prefix-list policies, BFD,
 maximum-prefix, blackhole routes for summaries, multihoming to two providers.
+
+## 9. What the fault campaign found
+
+| Problem | Symptom | Cause | Fix |
+|---|---|---|---|
+| Routing loop on WAN link failure | Fault 1 broke some cross-site flows | iBGP next hop reached through cores that have no BGP routes | Direct edge cross-link (A5/B5) |
+| VRRP stuck in Initialize | No gateway for the hosts | macvlan creation failed on an IPv6-only option (`addrgenmode`) | Option removed (IPv4-only VRRP) |
+| Flows broken through the Backup core | Partial, flow-dependent ping failures | /24 virtual IP: the Backup forwarded with the virtual MAC, so the switch moved the gateway MAC | Virtual IP as /32 |
+
+All three were found by testing, not by reading configs: the healthy-state
+validation passed while the design was still wrong under failure.

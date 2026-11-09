@@ -1,0 +1,12 @@
+{
+  "number": 3,
+  "name": "ospf-mtu",
+  "topic": "OSPF adjacency requirements (MTU)",
+  "description": "MTU lowered to 1400 on a-edge2 eth2 (link A3, a-core1 keeps its MTU)",
+  "validator_detected": true,
+  "validator_failed_checks": 5,
+  "validator_total_checks": 100,
+  "ping_detected": false,
+  "ping_failed_checks": 0,
+  "recovery_s": 33
+}

@@ -1,0 +1,12 @@
+{
+  "number": 6,
+  "name": "missing-lan",
+  "topic": "OSPF configuration (network statement)",
+  "description": "a-core1 no longer advertises VLAN 20 (10.1.20.0/24)",
+  "validator_detected": true,
+  "validator_failed_checks": 2,
+  "validator_total_checks": 100,
+  "ping_detected": false,
+  "ping_failed_checks": 0,
+  "recovery_s": 11
+}
