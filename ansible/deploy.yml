@@ -12,7 +12,22 @@
     backup_dir: "{{ playbook_dir }}/../backups"
 
   tasks:
-    # 1. Intent -> configs (same task as render.yml)
+    - name: Make sure the configs folder exists
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/../configs"
+        state: directory
+        mode: "0755"
+      run_once: true
+
+    # 1. Intent -> topology and configs (same tasks as render.yml)
+    - name: Render the Containerlab topology from the template
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/topology.clab.yml.j2"
+        dest: "{{ topology }}"
+        mode: "0644"
+      run_once: true
+      notify: Redeploy the lab
+
     - name: Render the router config from the template
       ansible.builtin.template:
         src: "{{ playbook_dir }}/../templates/frr.conf.j2"
@@ -22,7 +37,7 @@
 
     # 2. Is the lab running WITH its links? (after a restart, containers return without links)
     - name: Check whether the lab is running with its links
-      ansible.builtin.command: docker exec clab-netops-a-edge ip link show eth1
+      ansible.builtin.command: docker exec clab-netops-a-edge1 ip link show eth1
       register: lab_check
       failed_when: false
       changed_when: false
@@ -44,13 +59,13 @@
     - name: Apply pending redeploy (only if a config changed)
       ansible.builtin.meta: flush_handlers
 
-    # 4. Wait for routing to converge: a host in site A reaches a host in site B
-    - name: Wait until site A can reach site B
-      ansible.builtin.command: docker exec clab-netops-h-a1 ping -c 1 -W 1 10.2.10.10
-      register: ping
-      until: ping.rc == 0
-      retries: 60
-      delay: 2
+    # 4. Wait until the live network matches the intent (the validator passes)
+    - name: Wait until the network matches the intent
+      ansible.builtin.command: "{{ ansible_playbook_python }} {{ playbook_dir }}/../validator/validate.py --no-save"
+      register: validation
+      until: validation.rc == 0
+      retries: 30
+      delay: 5
       changed_when: false
       run_once: true
 

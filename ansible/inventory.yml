@@ -1,19 +1,23 @@
 all:
   children:
-    provider:
+    providers:
       hosts:
-        wan-p1:
-        wan-p2:
+        isp1:
+        isp2:
     site_a:
       hosts:
-        a-edge:
-        a-core:
+        a-edge1:
+        a-edge2:
+        a-core1:
+        a-core2:
     site_b:
       hosts:
-        b-edge:
-        b-core:
+        b-edge1:
+        b-edge2:
+        b-core1:
+        b-core2:
     routers:
       children:
-        provider:
+        providers:
         site_a:
         site_b:

@@ -1,155 +1,264 @@
-# intent/network.yml
+# intent/network.yml (v2)
 # Single source of truth for netops-intent-lab.
-# Ansible renders router configs from this file (M2); the validator reads it
-# to know the expected state (M3). Edit data here, never the generated configs.
-# Keys starting with expect_ are used only by the validator (not by the template).
+# Ansible renders the router configs AND the Containerlab topology from this file;
+# the validator reads it to know the expected state.
+# Edit data here, never the generated files (configs/, topology/netops.clab.yml).
+# Keys starting with expect_ are used only by the validator.
+# OSPF passive interfaces are not listed: every interface is passive except the
+# point-to-point links between routers (ospf_p2p: true).
 
 frr_version: "10.7.1"
+lab_name: netops
+
+# Network-wide standards, applied by the template to every router.
+# Lab-only secrets: in production they would come from Ansible Vault, never from Git.
+standards:
+  ospf_md5_key: "lab-ospf-key"   # OSPF MD5 authentication on every router-to-router link
+  bgp_password: "lab-bgp-key"    # TCP MD5 authentication on every BGP session
+  ebgp_bfd: true                 # BFD on eBGP sessions: sub-second failure detection
+  ebgp_max_prefix: 10            # an eBGP neighbour sending more than 10 routes is shut down
 
 routers:
 
-  # ---------------- Provider (AS 65000) ----------------
-  wan-p1:
+  # ================= Two independent providers =================
+  isp1:
+    graph_level: 1
     interfaces:
-      - { name: eth1, description: "L1 to wan-p2", ip: 10.0.1.1/30, ospf_p2p: true }
-      - { name: eth2, description: "L2 to a-edge", ip: 10.0.2.1/30 }
-      - { name: eth3, description: "L4 to b-edge", ip: 10.0.4.1/30 }
+      - { name: eth1, description: "W1 to a-edge1", ip: 10.0.1.1/30 }
+      - { name: eth2, description: "W3 to b-edge1", ip: 10.0.3.1/30 }
     loopback: 10.0.0.1/32
     prefix_lists:
       CUST-A-IN: [10.1.0.0/16]
       CUST-B-IN: [10.2.0.0/16]
       TO-CUST: [10.1.0.0/16, 10.2.0.0/16]
-    route_maps:
-      FROM-SITE-A: CUST-A-IN
-      FROM-SITE-B: CUST-B-IN
-      TO-CUSTOMER: TO-CUST
-    ospf:
-      router_id: 10.0.0.1
-      passive: [lo]
-      networks: [10.0.0.1/32, 10.0.1.0/30]
+    route_maps: { FROM-SITE-A: CUST-A-IN, FROM-SITE-B: CUST-B-IN, TO-CUSTOMER: TO-CUST }
     bgp:
-      asn: 65000
+      asn: 65010
       router_id: 10.0.0.1
       neighbors:
-        - { ip: 10.0.0.2, remote_as: 65000, description: wan-p2, update_source: lo, next_hop_self: true, expect_prefixes: [10.1.0.0/16, 10.2.0.0/16] }
-        - { ip: 10.0.2.2, remote_as: 65001, description: a-edge, default_originate: true, route_map_in: FROM-SITE-A, route_map_out: TO-CUSTOMER, expect_prefixes: [10.1.0.0/16] }
-        - { ip: 10.0.4.2, remote_as: 65002, description: b-edge, default_originate: true, route_map_in: FROM-SITE-B, route_map_out: TO-CUSTOMER, expect_prefixes: [10.2.0.0/16] }
+        - { ip: 10.0.1.2, remote_as: 65001, description: a-edge1, default_originate: true, route_map_in: FROM-SITE-A, route_map_out: TO-CUSTOMER, expect_prefixes: [10.1.0.0/16] }
+        - { ip: 10.0.3.2, remote_as: 65002, description: b-edge1, default_originate: true, route_map_in: FROM-SITE-B, route_map_out: TO-CUSTOMER, expect_prefixes: [10.2.0.0/16] }
 
-  wan-p2:
+  isp2:
+    graph_level: 1
     interfaces:
-      - { name: eth1, description: "L1 to wan-p1", ip: 10.0.1.2/30, ospf_p2p: true }
-      - { name: eth2, description: "L3 to a-edge", ip: 10.0.3.1/30 }
-      - { name: eth3, description: "L5 to b-edge", ip: 10.0.5.1/30 }
+      - { name: eth1, description: "W2 to a-edge2", ip: 10.0.2.1/30 }
+      - { name: eth2, description: "W4 to b-edge2", ip: 10.0.4.1/30 }
     loopback: 10.0.0.2/32
     prefix_lists:
       CUST-A-IN: [10.1.0.0/16]
       CUST-B-IN: [10.2.0.0/16]
       TO-CUST: [10.1.0.0/16, 10.2.0.0/16]
-    route_maps:
-      FROM-SITE-A: CUST-A-IN
-      FROM-SITE-B: CUST-B-IN
-      TO-CUSTOMER: TO-CUST
-    ospf:
-      router_id: 10.0.0.2
-      passive: [lo]
-      networks: [10.0.0.2/32, 10.0.1.0/30]
+    route_maps: { FROM-SITE-A: CUST-A-IN, FROM-SITE-B: CUST-B-IN, TO-CUSTOMER: TO-CUST }
     bgp:
-      asn: 65000
+      asn: 65020
       router_id: 10.0.0.2
       neighbors:
-        - { ip: 10.0.0.1, remote_as: 65000, description: wan-p1, update_source: lo, next_hop_self: true, expect_prefixes: [10.1.0.0/16, 10.2.0.0/16] }
-        - { ip: 10.0.3.2, remote_as: 65001, description: a-edge, default_originate: true, route_map_in: FROM-SITE-A, route_map_out: TO-CUSTOMER, expect_prefixes: [10.1.0.0/16] }
-        - { ip: 10.0.5.2, remote_as: 65002, description: b-edge, default_originate: true, route_map_in: FROM-SITE-B, route_map_out: TO-CUSTOMER, expect_prefixes: [10.2.0.0/16] }
+        - { ip: 10.0.2.2, remote_as: 65001, description: a-edge2, default_originate: true, route_map_in: FROM-SITE-A, route_map_out: TO-CUSTOMER, expect_prefixes: [10.1.0.0/16] }
+        - { ip: 10.0.4.2, remote_as: 65002, description: b-edge2, default_originate: true, route_map_in: FROM-SITE-B, route_map_out: TO-CUSTOMER, expect_prefixes: [10.2.0.0/16] }
 
-  # ---------------- Site A (AS 65001) ----------------
-  a-edge:
+  # ================= Site A (AS 65001) =================
+  a-edge1:
+    graph_level: 2
     interfaces:
-      - { name: eth1, description: "L2 to wan-p1", ip: 10.0.2.2/30 }
-      - { name: eth2, description: "L3 to wan-p2", ip: 10.0.3.2/30 }
-      - { name: eth3, description: "L6 to a-core", ip: 10.1.1.1/30, ospf_p2p: true }
+      - { name: eth1, description: "W1 to isp1", ip: 10.0.1.2/30 }
+      - { name: eth2, description: "A1 to a-core1", ip: 10.1.1.1/30, ospf_p2p: true }
+      - { name: eth3, description: "A2 to a-core2", ip: 10.1.1.5/30, ospf_p2p: true }
     loopback: 10.1.0.1/32
-    static_routes:
-      - { prefix: 10.1.0.0/16, next_hop: blackhole }
-    prefix_lists:
-      SITE-A-OUT: [10.1.0.0/16]
-      FROM-PROVIDER: [0.0.0.0/0, 10.2.0.0/16]
-    route_maps:
-      PROVIDER-IN: FROM-PROVIDER
-      PROVIDER-OUT: SITE-A-OUT
+    static_routes: [{ prefix: 10.1.0.0/16, next_hop: blackhole }]
+    prefix_lists: { SITE-OUT: [10.1.0.0/16], FROM-PROVIDER: [0.0.0.0/0, 10.2.0.0/16] }
+    route_maps: { PROVIDER-IN: FROM-PROVIDER, PROVIDER-OUT: SITE-OUT }
     ospf:
       router_id: 10.1.0.1
-      passive: [lo]
-      networks: [10.1.0.1/32, 10.1.1.0/30]
+      networks: [10.1.0.1/32, 10.1.1.0/30, 10.1.1.4/30]
       default_originate: true
     bgp:
       asn: 65001
       router_id: 10.1.0.1
       networks: [10.1.0.0/16]
       neighbors:
-        - { ip: 10.0.2.1, remote_as: 65000, description: wan-p1, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT, expect_prefixes: [0.0.0.0/0, 10.2.0.0/16] }
-        - { ip: 10.0.3.1, remote_as: 65000, description: wan-p2, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT, expect_prefixes: [0.0.0.0/0, 10.2.0.0/16] }
+        - { ip: 10.0.1.1, remote_as: 65010, description: isp1, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT, expect_prefixes: [0.0.0.0/0, 10.2.0.0/16] }
+        - { ip: 10.1.0.2, remote_as: 65001, description: a-edge2, update_source: lo, next_hop_self: true, expect_prefixes: [0.0.0.0/0, 10.1.0.0/16, 10.2.0.0/16] }
+    expect_routes:
+      10.1.10.0/24: { protocol: ospf, paths: 2 }
+      10.1.20.0/24: { protocol: ospf, paths: 2 }
 
-  a-core:
+  a-edge2:
+    graph_level: 2
     interfaces:
-      - { name: eth1, description: "L6 to a-edge", ip: 10.1.1.2/30, ospf_p2p: true }
-      - { name: eth2, description: "LAN1 to h-a1", ip: 10.1.10.1/24 }
-      - { name: eth3, description: "LAN2 to h-a2", ip: 10.1.20.1/24 }
+      - { name: eth1, description: "W2 to isp2", ip: 10.0.2.2/30 }
+      - { name: eth2, description: "A3 to a-core1", ip: 10.1.1.9/30, ospf_p2p: true }
+      - { name: eth3, description: "A4 to a-core2", ip: 10.1.1.13/30, ospf_p2p: true }
     loopback: 10.1.0.2/32
-    expect_default_route: ospf
+    static_routes: [{ prefix: 10.1.0.0/16, next_hop: blackhole }]
+    prefix_lists: { SITE-OUT: [10.1.0.0/16], FROM-PROVIDER: [0.0.0.0/0, 10.2.0.0/16] }
+    route_maps: { PROVIDER-IN: FROM-PROVIDER, PROVIDER-OUT: SITE-OUT }
     ospf:
       router_id: 10.1.0.2
-      passive: [lo, eth2, eth3]
-      networks: [10.1.0.2/32, 10.1.1.0/30, 10.1.10.0/24, 10.1.20.0/24]
+      networks: [10.1.0.2/32, 10.1.1.8/30, 10.1.1.12/30]
+      default_originate: true
+    bgp:
+      asn: 65001
+      router_id: 10.1.0.2
+      networks: [10.1.0.0/16]
+      neighbors:
+        - { ip: 10.0.2.1, remote_as: 65020, description: isp2, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT, expect_prefixes: [0.0.0.0/0, 10.2.0.0/16] }
+        - { ip: 10.1.0.1, remote_as: 65001, description: a-edge1, update_source: lo, next_hop_self: true, expect_prefixes: [0.0.0.0/0, 10.1.0.0/16, 10.2.0.0/16] }
+    expect_routes:
+      10.1.10.0/24: { protocol: ospf, paths: 2 }
+      10.1.20.0/24: { protocol: ospf, paths: 2 }
 
-  # ---------------- Site B (AS 65002) ----------------
-  b-edge:
+  a-core1:
+    graph_level: 3
     interfaces:
-      - { name: eth1, description: "L4 to wan-p1", ip: 10.0.4.2/30 }
-      - { name: eth2, description: "L5 to wan-p2", ip: 10.0.5.2/30 }
-      - { name: eth3, description: "L7 to b-core", ip: 10.2.1.1/30, ospf_p2p: true }
+      - { name: eth1, description: "A1 to a-edge1", ip: 10.1.1.2/30, ospf_p2p: true }
+      - { name: eth2, description: "A3 to a-edge2", ip: 10.1.1.10/30, ospf_p2p: true }
+      - { name: eth3, description: "trunk to a-sw1" }
+      - { name: eth3.10, description: "VLAN 10 users", ip: 10.1.10.2/24, vrrp: { vrid: 10, vip: 10.1.10.1, priority: 150 } }
+      - { name: eth3.20, description: "VLAN 20 users", ip: 10.1.20.2/24, vrrp: { vrid: 20, vip: 10.1.20.1, priority: 150 } }
+    loopback: 10.1.0.3/32
+    ospf:
+      router_id: 10.1.0.3
+      networks: [10.1.0.3/32, 10.1.1.0/30, 10.1.1.8/30, 10.1.10.0/24, 10.1.20.0/24]
+    expect_routes:
+      0.0.0.0/0: { protocol: ospf, paths: 2 }
+    expect_vrrp: { 10: Master, 20: Master }
+
+  a-core2:
+    graph_level: 3
+    interfaces:
+      - { name: eth1, description: "A2 to a-edge1", ip: 10.1.1.6/30, ospf_p2p: true }
+      - { name: eth2, description: "A4 to a-edge2", ip: 10.1.1.14/30, ospf_p2p: true }
+      - { name: eth3, description: "trunk to a-sw1" }
+      - { name: eth3.10, description: "VLAN 10 users", ip: 10.1.10.3/24, vrrp: { vrid: 10, vip: 10.1.10.1, priority: 100 } }
+      - { name: eth3.20, description: "VLAN 20 users", ip: 10.1.20.3/24, vrrp: { vrid: 20, vip: 10.1.20.1, priority: 100 } }
+    loopback: 10.1.0.4/32
+    ospf:
+      router_id: 10.1.0.4
+      networks: [10.1.0.4/32, 10.1.1.4/30, 10.1.1.12/30, 10.1.10.0/24, 10.1.20.0/24]
+    expect_routes:
+      0.0.0.0/0: { protocol: ospf, paths: 2 }
+    expect_vrrp: { 10: Backup, 20: Backup }
+
+  # ================= Site B (AS 65002) =================
+  b-edge1:
+    graph_level: 2
+    interfaces:
+      - { name: eth1, description: "W3 to isp1", ip: 10.0.3.2/30 }
+      - { name: eth2, description: "B1 to b-core1", ip: 10.2.1.1/30, ospf_p2p: true }
+      - { name: eth3, description: "B2 to b-core2", ip: 10.2.1.5/30, ospf_p2p: true }
     loopback: 10.2.0.1/32
-    static_routes:
-      - { prefix: 10.2.0.0/16, next_hop: blackhole }
-    prefix_lists:
-      SITE-B-OUT: [10.2.0.0/16]
-      FROM-PROVIDER: [0.0.0.0/0, 10.1.0.0/16]
-    route_maps:
-      PROVIDER-IN: FROM-PROVIDER
-      PROVIDER-OUT: SITE-B-OUT
+    static_routes: [{ prefix: 10.2.0.0/16, next_hop: blackhole }]
+    prefix_lists: { SITE-OUT: [10.2.0.0/16], FROM-PROVIDER: [0.0.0.0/0, 10.1.0.0/16] }
+    route_maps: { PROVIDER-IN: FROM-PROVIDER, PROVIDER-OUT: SITE-OUT }
     ospf:
       router_id: 10.2.0.1
-      passive: [lo]
-      networks: [10.2.0.1/32, 10.2.1.0/30]
+      networks: [10.2.0.1/32, 10.2.1.0/30, 10.2.1.4/30]
       default_originate: true
     bgp:
       asn: 65002
       router_id: 10.2.0.1
       networks: [10.2.0.0/16]
       neighbors:
-        - { ip: 10.0.4.1, remote_as: 65000, description: wan-p1, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT, expect_prefixes: [0.0.0.0/0, 10.1.0.0/16] }
-        - { ip: 10.0.5.1, remote_as: 65000, description: wan-p2, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT, expect_prefixes: [0.0.0.0/0, 10.1.0.0/16] }
+        - { ip: 10.0.3.1, remote_as: 65010, description: isp1, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT, expect_prefixes: [0.0.0.0/0, 10.1.0.0/16] }
+        - { ip: 10.2.0.2, remote_as: 65002, description: b-edge2, update_source: lo, next_hop_self: true, expect_prefixes: [0.0.0.0/0, 10.1.0.0/16, 10.2.0.0/16] }
+    expect_routes:
+      10.2.10.0/24: { protocol: ospf, paths: 2 }
+      10.2.20.0/24: { protocol: ospf, paths: 2 }
 
-  b-core:
+  b-edge2:
+    graph_level: 2
     interfaces:
-      - { name: eth1, description: "L7 to b-edge", ip: 10.2.1.2/30, ospf_p2p: true }
-      - { name: eth2, description: "LAN1 to h-b1", ip: 10.2.10.1/24 }
-      - { name: eth3, description: "LAN2 to h-b2", ip: 10.2.20.1/24 }
+      - { name: eth1, description: "W4 to isp2", ip: 10.0.4.2/30 }
+      - { name: eth2, description: "B3 to b-core1", ip: 10.2.1.9/30, ospf_p2p: true }
+      - { name: eth3, description: "B4 to b-core2", ip: 10.2.1.13/30, ospf_p2p: true }
     loopback: 10.2.0.2/32
-    expect_default_route: ospf
+    static_routes: [{ prefix: 10.2.0.0/16, next_hop: blackhole }]
+    prefix_lists: { SITE-OUT: [10.2.0.0/16], FROM-PROVIDER: [0.0.0.0/0, 10.1.0.0/16] }
+    route_maps: { PROVIDER-IN: FROM-PROVIDER, PROVIDER-OUT: SITE-OUT }
     ospf:
       router_id: 10.2.0.2
-      passive: [lo, eth2, eth3]
-      networks: [10.2.0.2/32, 10.2.1.0/30, 10.2.10.0/24, 10.2.20.0/24]
+      networks: [10.2.0.2/32, 10.2.1.8/30, 10.2.1.12/30]
+      default_originate: true
+    bgp:
+      asn: 65002
+      router_id: 10.2.0.2
+      networks: [10.2.0.0/16]
+      neighbors:
+        - { ip: 10.0.4.1, remote_as: 65020, description: isp2, route_map_in: PROVIDER-IN, route_map_out: PROVIDER-OUT, expect_prefixes: [0.0.0.0/0, 10.1.0.0/16] }
+        - { ip: 10.2.0.1, remote_as: 65002, description: b-edge1, update_source: lo, next_hop_self: true, expect_prefixes: [0.0.0.0/0, 10.1.0.0/16, 10.2.0.0/16] }
+    expect_routes:
+      10.2.10.0/24: { protocol: ospf, paths: 2 }
+      10.2.20.0/24: { protocol: ospf, paths: 2 }
 
-# ---------------- Endpoints: test hosts (used by the validator's reachability checks) ----------------
-# The topology file configures them; this section states what the validator expects.
+  b-core1:
+    graph_level: 3
+    interfaces:
+      - { name: eth1, description: "B1 to b-edge1", ip: 10.2.1.2/30, ospf_p2p: true }
+      - { name: eth2, description: "B3 to b-edge2", ip: 10.2.1.10/30, ospf_p2p: true }
+      - { name: eth3, description: "trunk to b-sw1" }
+      - { name: eth3.10, description: "VLAN 10 users", ip: 10.2.10.2/24, vrrp: { vrid: 10, vip: 10.2.10.1, priority: 150 } }
+      - { name: eth3.20, description: "VLAN 20 users", ip: 10.2.20.2/24, vrrp: { vrid: 20, vip: 10.2.20.1, priority: 150 } }
+    loopback: 10.2.0.3/32
+    ospf:
+      router_id: 10.2.0.3
+      networks: [10.2.0.3/32, 10.2.1.0/30, 10.2.1.8/30, 10.2.10.0/24, 10.2.20.0/24]
+    expect_routes:
+      0.0.0.0/0: { protocol: ospf, paths: 2 }
+    expect_vrrp: { 10: Master, 20: Master }
+
+  b-core2:
+    graph_level: 3
+    interfaces:
+      - { name: eth1, description: "B2 to b-edge1", ip: 10.2.1.6/30, ospf_p2p: true }
+      - { name: eth2, description: "B4 to b-edge2", ip: 10.2.1.14/30, ospf_p2p: true }
+      - { name: eth3, description: "trunk to b-sw1" }
+      - { name: eth3.10, description: "VLAN 10 users", ip: 10.2.10.3/24, vrrp: { vrid: 10, vip: 10.2.10.1, priority: 100 } }
+      - { name: eth3.20, description: "VLAN 20 users", ip: 10.2.20.3/24, vrrp: { vrid: 20, vip: 10.2.20.1, priority: 100 } }
+    loopback: 10.2.0.4/32
+    ospf:
+      router_id: 10.2.0.4
+      networks: [10.2.0.4/32, 10.2.1.4/30, 10.2.1.12/30, 10.2.10.0/24, 10.2.20.0/24]
+    expect_routes:
+      0.0.0.0/0: { protocol: ospf, paths: 2 }
+    expect_vrrp: { 10: Backup, 20: Backup }
+
+# ================= Access switches (Linux bridges, one bridge per VLAN) =================
+switches:
+  a-sw1: { graph_level: 4, vlans: [10, 20], trunks: [eth1, eth2], access: { eth3: 10, eth4: 20 } }
+  b-sw1: { graph_level: 4, vlans: [10, 20], trunks: [eth1, eth2], access: { eth3: 10, eth4: 20 } }
+
+# ================= Test hosts (gateway = the VRRP virtual IP) =================
 endpoints:
   h-a1: { ip: 10.1.10.10/24, gateway: 10.1.10.1 }
   h-a2: { ip: 10.1.20.10/24, gateway: 10.1.20.1 }
   h-b1: { ip: 10.2.10.10/24, gateway: 10.2.10.1 }
   h-b2: { ip: 10.2.20.10/24, gateway: 10.2.20.1 }
 
-# Hosts used to test that every router loopback is reachable (one per site).
-# Probing from the other site matters: a host always reaches its own gateway's
-# loopback, even when that loopback is not advertised.
+# Hosts that probe every site router's loopback (one per site, so each probe
+# crosses the network). Provider loopbacks are not probed: the two providers
+# are independent and do not route to each other's infrastructure.
 loopback_probes: [h-a1, h-b1]
+
+# ================= Cabling =================
+links:
+  - [isp1:eth1, a-edge1:eth1]     # W1
+  - [isp2:eth1, a-edge2:eth1]     # W2
+  - [isp1:eth2, b-edge1:eth1]     # W3
+  - [isp2:eth2, b-edge2:eth1]     # W4
+  - [a-edge1:eth2, a-core1:eth1]  # A1
+  - [a-edge1:eth3, a-core2:eth1]  # A2
+  - [a-edge2:eth2, a-core1:eth2]  # A3
+  - [a-edge2:eth3, a-core2:eth2]  # A4
+  - [b-edge1:eth2, b-core1:eth1]  # B1
+  - [b-edge1:eth3, b-core2:eth1]  # B2
+  - [b-edge2:eth2, b-core1:eth2]  # B3
+  - [b-edge2:eth3, b-core2:eth2]  # B4
+  - [a-core1:eth3, a-sw1:eth1]    # trunk
+  - [a-core2:eth3, a-sw1:eth2]    # trunk
+  - [a-sw1:eth3, h-a1:eth1]       # access VLAN 10
+  - [a-sw1:eth4, h-a2:eth1]       # access VLAN 20
+  - [b-core1:eth3, b-sw1:eth1]    # trunk
+  - [b-core2:eth3, b-sw1:eth2]    # trunk
+  - [b-sw1:eth3, h-b1:eth1]       # access VLAN 10
+  - [b-sw1:eth4, h-b2:eth1]       # access VLAN 20

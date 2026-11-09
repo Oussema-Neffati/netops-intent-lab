@@ -1,3 +1,4 @@
+# GENERATED from intent/network.yml by ansible/render.yml - do not edit by hand.
 name: netops
 
 topology:
@@ -5,66 +6,205 @@ topology:
     routers:
       kind: frr
       image: quay.io/frrouting/frr:containerlab-10.7.1
-      daemons:
-        - ospfd
-        - bgpd
-      labels:
-        graph-icon: router  
+      daemons: [ospfd, bgpd, bfdd, vrrpd]
+      labels: { graph-icon: router }
+    switches:
+      kind: linux
+      image: wbitt/network-multitool:3.22.2
+      labels: { graph-icon: switch }
     hosts:
       kind: linux
       image: wbitt/network-multitool:3.22.2
-      labels:
-        graph-icon: client
+      labels: { graph-icon: client }
 
   nodes:
-    # --- Provider (AS 65000) ---
-    wan-p1: { group: routers, startup-config: ../configs/wan-p1.conf, labels: { graph-level: 1 } }
-    wan-p2: { group: routers, startup-config: ../configs/wan-p2.conf, labels: { graph-level: 1 } }
-    # --- Site A (AS 65001) ---
-    a-edge: { group: routers, startup-config: ../configs/a-edge.conf, labels: { graph-level: 2 } }
-    a-core: { group: routers, startup-config: ../configs/a-core.conf, labels: { graph-level: 3 } }
-    # --- Site B (AS 65002) ---
-    b-edge: { group: routers, startup-config: ../configs/b-edge.conf, labels: { graph-level: 2 } }
-    b-core: { group: routers, startup-config: ../configs/b-core.conf, labels: { graph-level: 3 } }
-    # --- Hosts ---
+    isp1:
+      group: routers
+      startup-config: ../configs/isp1.conf
+      labels: { graph-level: 1 }
+    isp2:
+      group: routers
+      startup-config: ../configs/isp2.conf
+      labels: { graph-level: 1 }
+    a-edge1:
+      group: routers
+      startup-config: ../configs/a-edge1.conf
+      labels: { graph-level: 2 }
+    a-edge2:
+      group: routers
+      startup-config: ../configs/a-edge2.conf
+      labels: { graph-level: 2 }
+    a-core1:
+      group: routers
+      startup-config: ../configs/a-core1.conf
+      labels: { graph-level: 3 }
+      exec:
+        - ip link add link eth3 name eth3.10 type vlan id 10
+        - ip link set eth3.10 up
+        - ip link add vrrp4-10 link eth3.10 type macvlan mode bridge
+        - ip link set dev vrrp4-10 address 00:00:5e:00:01:0a
+        - ip addr add 10.1.10.1/32 dev vrrp4-10
+        - ip link set dev vrrp4-10 up
+        - ip link add link eth3 name eth3.20 type vlan id 20
+        - ip link set eth3.20 up
+        - ip link add vrrp4-20 link eth3.20 type macvlan mode bridge
+        - ip link set dev vrrp4-20 address 00:00:5e:00:01:14
+        - ip addr add 10.1.20.1/32 dev vrrp4-20
+        - ip link set dev vrrp4-20 up
+    a-core2:
+      group: routers
+      startup-config: ../configs/a-core2.conf
+      labels: { graph-level: 3 }
+      exec:
+        - ip link add link eth3 name eth3.10 type vlan id 10
+        - ip link set eth3.10 up
+        - ip link add vrrp4-10 link eth3.10 type macvlan mode bridge
+        - ip link set dev vrrp4-10 address 00:00:5e:00:01:0a
+        - ip addr add 10.1.10.1/32 dev vrrp4-10
+        - ip link set dev vrrp4-10 up
+        - ip link add link eth3 name eth3.20 type vlan id 20
+        - ip link set eth3.20 up
+        - ip link add vrrp4-20 link eth3.20 type macvlan mode bridge
+        - ip link set dev vrrp4-20 address 00:00:5e:00:01:14
+        - ip addr add 10.1.20.1/32 dev vrrp4-20
+        - ip link set dev vrrp4-20 up
+    b-edge1:
+      group: routers
+      startup-config: ../configs/b-edge1.conf
+      labels: { graph-level: 2 }
+    b-edge2:
+      group: routers
+      startup-config: ../configs/b-edge2.conf
+      labels: { graph-level: 2 }
+    b-core1:
+      group: routers
+      startup-config: ../configs/b-core1.conf
+      labels: { graph-level: 3 }
+      exec:
+        - ip link add link eth3 name eth3.10 type vlan id 10
+        - ip link set eth3.10 up
+        - ip link add vrrp4-10 link eth3.10 type macvlan mode bridge
+        - ip link set dev vrrp4-10 address 00:00:5e:00:01:0a
+        - ip addr add 10.2.10.1/32 dev vrrp4-10
+        - ip link set dev vrrp4-10 up
+        - ip link add link eth3 name eth3.20 type vlan id 20
+        - ip link set eth3.20 up
+        - ip link add vrrp4-20 link eth3.20 type macvlan mode bridge
+        - ip link set dev vrrp4-20 address 00:00:5e:00:01:14
+        - ip addr add 10.2.20.1/32 dev vrrp4-20
+        - ip link set dev vrrp4-20 up
+    b-core2:
+      group: routers
+      startup-config: ../configs/b-core2.conf
+      labels: { graph-level: 3 }
+      exec:
+        - ip link add link eth3 name eth3.10 type vlan id 10
+        - ip link set eth3.10 up
+        - ip link add vrrp4-10 link eth3.10 type macvlan mode bridge
+        - ip link set dev vrrp4-10 address 00:00:5e:00:01:0a
+        - ip addr add 10.2.10.1/32 dev vrrp4-10
+        - ip link set dev vrrp4-10 up
+        - ip link add link eth3 name eth3.20 type vlan id 20
+        - ip link set eth3.20 up
+        - ip link add vrrp4-20 link eth3.20 type macvlan mode bridge
+        - ip link set dev vrrp4-20 address 00:00:5e:00:01:14
+        - ip addr add 10.2.20.1/32 dev vrrp4-20
+        - ip link set dev vrrp4-20 up
+    a-sw1:
+      group: switches
+      labels: { graph-level: 4 }
+      exec:
+        - ip link add br10 type bridge
+        - ip link set br10 up
+        - ip link add br20 type bridge
+        - ip link set br20 up
+        - ip link set eth1 up
+        - ip link add link eth1 name eth1.10 type vlan id 10
+        - ip link set eth1.10 master br10
+        - ip link set eth1.10 up
+        - ip link add link eth1 name eth1.20 type vlan id 20
+        - ip link set eth1.20 master br20
+        - ip link set eth1.20 up
+        - ip link set eth2 up
+        - ip link add link eth2 name eth2.10 type vlan id 10
+        - ip link set eth2.10 master br10
+        - ip link set eth2.10 up
+        - ip link add link eth2 name eth2.20 type vlan id 20
+        - ip link set eth2.20 master br20
+        - ip link set eth2.20 up
+        - ip link set eth3 master br10
+        - ip link set eth3 up
+        - ip link set eth4 master br20
+        - ip link set eth4 up
+    b-sw1:
+      group: switches
+      labels: { graph-level: 4 }
+      exec:
+        - ip link add br10 type bridge
+        - ip link set br10 up
+        - ip link add br20 type bridge
+        - ip link set br20 up
+        - ip link set eth1 up
+        - ip link add link eth1 name eth1.10 type vlan id 10
+        - ip link set eth1.10 master br10
+        - ip link set eth1.10 up
+        - ip link add link eth1 name eth1.20 type vlan id 20
+        - ip link set eth1.20 master br20
+        - ip link set eth1.20 up
+        - ip link set eth2 up
+        - ip link add link eth2 name eth2.10 type vlan id 10
+        - ip link set eth2.10 master br10
+        - ip link set eth2.10 up
+        - ip link add link eth2 name eth2.20 type vlan id 20
+        - ip link set eth2.20 master br20
+        - ip link set eth2.20 up
+        - ip link set eth3 master br10
+        - ip link set eth3 up
+        - ip link set eth4 master br20
+        - ip link set eth4 up
     h-a1:
       group: hosts
-      labels:
-        graph-level: 4
+      labels: { graph-level: 5 }
       exec:
         - ip addr add 10.1.10.10/24 dev eth1
         - ip route add 10.0.0.0/8 via 10.1.10.1 dev eth1
     h-a2:
       group: hosts
-      labels:
-        graph-level: 4
+      labels: { graph-level: 5 }
       exec:
         - ip addr add 10.1.20.10/24 dev eth1
         - ip route add 10.0.0.0/8 via 10.1.20.1 dev eth1
     h-b1:
       group: hosts
-      labels:
-        graph-level: 4
+      labels: { graph-level: 5 }
       exec:
         - ip addr add 10.2.10.10/24 dev eth1
         - ip route add 10.0.0.0/8 via 10.2.10.1 dev eth1
     h-b2:
       group: hosts
-      labels:
-           graph-level: 4
+      labels: { graph-level: 5 }
       exec:
         - ip addr add 10.2.20.10/24 dev eth1
         - ip route add 10.0.0.0/8 via 10.2.20.1 dev eth1
 
   links:
-    - endpoints: [ "wan-p1:eth1", "wan-p2:eth1" ] # L1
-    - endpoints: [ "wan-p1:eth2", "a-edge:eth1" ] # L2
-    - endpoints: [ "wan-p2:eth2", "a-edge:eth2" ] # L3
-    - endpoints: [ "wan-p1:eth3", "b-edge:eth1" ] # L4
-    - endpoints: [ "wan-p2:eth3", "b-edge:eth2" ] # L5
-    - endpoints: [ "a-edge:eth3", "a-core:eth1" ] # L6
-    - endpoints: [ "b-edge:eth3", "b-core:eth1" ] # L7
-    - endpoints: [ "a-core:eth2", "h-a1:eth1" ] # Site A LAN 1
-    - endpoints: [ "a-core:eth3", "h-a2:eth1" ] # Site A LAN 2
-    - endpoints: [ "b-core:eth2", "h-b1:eth1" ] # Site B LAN 1
-    - endpoints: [ "b-core:eth3", "h-b2:eth1" ] # Site B LAN 2
+    - endpoints: ["isp1:eth1", "a-edge1:eth1"]
+    - endpoints: ["isp2:eth1", "a-edge2:eth1"]
+    - endpoints: ["isp1:eth2", "b-edge1:eth1"]
+    - endpoints: ["isp2:eth2", "b-edge2:eth1"]
+    - endpoints: ["a-edge1:eth2", "a-core1:eth1"]
+    - endpoints: ["a-edge1:eth3", "a-core2:eth1"]
+    - endpoints: ["a-edge2:eth2", "a-core1:eth2"]
+    - endpoints: ["a-edge2:eth3", "a-core2:eth2"]
+    - endpoints: ["b-edge1:eth2", "b-core1:eth1"]
+    - endpoints: ["b-edge1:eth3", "b-core2:eth1"]
+    - endpoints: ["b-edge2:eth2", "b-core1:eth2"]
+    - endpoints: ["b-edge2:eth3", "b-core2:eth2"]
+    - endpoints: ["a-core1:eth3", "a-sw1:eth1"]
+    - endpoints: ["a-core2:eth3", "a-sw1:eth2"]
+    - endpoints: ["a-sw1:eth3", "h-a1:eth1"]
+    - endpoints: ["a-sw1:eth4", "h-a2:eth1"]
+    - endpoints: ["b-core1:eth3", "b-sw1:eth1"]
+    - endpoints: ["b-core2:eth3", "b-sw1:eth2"]
+    - endpoints: ["b-sw1:eth3", "h-b1:eth1"]
+    - endpoints: ["b-sw1:eth4", "h-b2:eth1"]

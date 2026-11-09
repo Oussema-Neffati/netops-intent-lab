@@ -17,21 +17,22 @@ from pathlib import Path
 
 import yaml
 
-from checks import (check_bgp, check_default_route, check_loopbacks, check_ospf,
-                    check_reachability, result)
+from checks import (check_bgp, check_loopbacks, check_ospf, check_reachability,
+                    check_routes, check_vrrp, result)
 
 REPO = Path(__file__).resolve().parent.parent
 INTENT_FILE = REPO / "intent" / "network.yml"
 RUNS_DIR = REPO / "results" / "runs"
 
 
-def run_protocol_checks(routers):
+def run_protocol_checks(routers, standards):
     results = []
     for name, router in routers.items():
         try:
             results += check_ospf(name, routers)
-            results += check_bgp(name, router)
-            results += check_default_route(name, router)
+            results += check_bgp(name, router, standards)
+            results += check_routes(name, router)
+            results += check_vrrp(name, router)
         except RuntimeError as error:
             results.append(result(name, "Router answers", "answers", str(error)))
     return results
@@ -82,7 +83,7 @@ def main():
     start = time.monotonic()
     results = []
     if args.mode == "full":
-        results += run_protocol_checks(intent["routers"])
+        results += run_protocol_checks(intent["routers"], intent.get("standards", {}))
         results += check_loopbacks(intent["routers"], intent["loopback_probes"])
     results += check_reachability(intent["endpoints"])
     duration = round(time.monotonic() - start, 1)

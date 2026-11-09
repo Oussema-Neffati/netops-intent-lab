@@ -1,0 +1,77 @@
+{# Containerlab topology, generated from intent/network.yml: do not edit topology/netops.clab.yml #}
+# GENERATED from intent/network.yml by ansible/render.yml - do not edit by hand.
+name: {{ lab_name }}
+
+topology:
+  groups:
+    routers:
+      kind: frr
+      image: quay.io/frrouting/frr:containerlab-{{ frr_version }}
+      daemons: [ospfd, bgpd, bfdd, vrrpd]
+      labels: { graph-icon: router }
+    switches:
+      kind: linux
+      image: wbitt/network-multitool:3.22.2
+      labels: { graph-icon: switch }
+    hosts:
+      kind: linux
+      image: wbitt/network-multitool:3.22.2
+      labels: { graph-icon: client }
+
+  nodes:
+{% for name, r in routers.items() %}
+{% set vlans = r.interfaces | selectattr('name', 'search', '\\.') | list %}
+    {{ name }}:
+      group: routers
+      startup-config: ../configs/{{ name }}.conf
+      labels: { graph-level: {{ r.graph_level }} }
+{% if vlans %}
+      exec:
+{% for intf in vlans %}
+{% set parent, vid = intf.name.split('.') %}
+        - ip link add link {{ parent }} name {{ intf.name }} type vlan id {{ vid }}
+        - ip link set {{ intf.name }} up
+{% if intf.vrrp is defined %}
+        - ip link add vrrp4-{{ intf.vrrp.vrid }} link {{ intf.name }} type macvlan mode bridge
+        - ip link set dev vrrp4-{{ intf.vrrp.vrid }} address 00:00:5e:00:01:{{ '%02x' % intf.vrrp.vrid }}
+        - ip addr add {{ intf.vrrp.vip }}/32 dev vrrp4-{{ intf.vrrp.vrid }}
+        - ip link set dev vrrp4-{{ intf.vrrp.vrid }} up
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% for name, sw in switches.items() %}
+    {{ name }}:
+      group: switches
+      labels: { graph-level: {{ sw.graph_level }} }
+      exec:
+{% for vid in sw.vlans %}
+        - ip link add br{{ vid }} type bridge
+        - ip link set br{{ vid }} up
+{% endfor %}
+{% for trunk in sw.trunks %}
+        - ip link set {{ trunk }} up
+{% for vid in sw.vlans %}
+        - ip link add link {{ trunk }} name {{ trunk }}.{{ vid }} type vlan id {{ vid }}
+        - ip link set {{ trunk }}.{{ vid }} master br{{ vid }}
+        - ip link set {{ trunk }}.{{ vid }} up
+{% endfor %}
+{% endfor %}
+{% for port, vid in sw.access.items() %}
+        - ip link set {{ port }} master br{{ vid }}
+        - ip link set {{ port }} up
+{% endfor %}
+{% endfor %}
+{% for name, h in endpoints.items() %}
+    {{ name }}:
+      group: hosts
+      labels: { graph-level: 5 }
+      exec:
+        - ip addr add {{ h.ip }} dev eth1
+        - ip route add 10.0.0.0/8 via {{ h.gateway }} dev eth1
+{% endfor %}
+
+  links:
+{% for a, b in links %}
+    - endpoints: ["{{ a }}", "{{ b }}"]
+{% endfor %}

@@ -1,4 +1,4 @@
-- name: Render FRR configs from the intent file
+- name: Render the topology and the FRR configs from the intent file
   hosts: routers
   connection: local
   gather_facts: false
@@ -10,6 +10,20 @@
     r: "{{ routers[inventory_hostname] }}"
 
   tasks:
+    - name: Render the Containerlab topology from the template
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/topology.clab.yml.j2"
+        dest: "{{ playbook_dir }}/../topology/netops.clab.yml"
+        mode: "0644"
+      run_once: true
+
+    - name: Make sure the configs folder exists
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/../configs"
+        state: directory
+        mode: "0755"
+      run_once: true
+
     - name: Render the router config from the template
       ansible.builtin.template:
         src: "{{ playbook_dir }}/../templates/frr.conf.j2"

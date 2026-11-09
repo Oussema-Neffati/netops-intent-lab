@@ -43,6 +43,8 @@ def expected_ospf_neighbors(name, routers):
 
 def check_ospf(name, routers):
     """Each expected OSPF neighbour must be present and Full."""
+    if "ospf" not in routers[name]:
+        return []
     live = vtysh_json(name, "show ip ospf neighbor").get("neighbors", {})
     results = []
     for router_id in sorted(expected_ospf_neighbors(name, routers)):
@@ -58,16 +60,33 @@ def check_ospf(name, routers):
     return results
 
 
-def check_bgp(name, router):
-    """Each BGP neighbour in the intent must be Established and send the expected prefixes."""
+def bfd_peers(name):
+    """BFD session status per peer address, e.g. {"10.0.2.1": "up"}."""
+    data = vtysh_json(name, "show bfd peers")
+    if isinstance(data, dict):  # some FRR versions wrap the list in an object
+        data = data.get("peers", [])
+    return {peer.get("peer"): peer.get("status", "?") for peer in data}
+
+
+def check_bgp(name, router, standards=None):
+    """Each BGP neighbour in the intent must be Established and send the expected prefixes.
+
+    eBGP neighbours (different AS) must also have an up BFD session when the
+    network standard ebgp_bfd is enabled.
+    """
     if "bgp" not in router:
         return []
+    standards = standards or {}
     peers = vtysh_json(name, "show bgp summary").get("ipv4Unicast", {}).get("peers", {})
+    bfd = bfd_peers(name) if standards.get("ebgp_bfd") else {}
     results = []
     for neighbor in router["bgp"]["neighbors"]:
         ip, label = neighbor["ip"], neighbor["description"]
         state = peers.get(ip, {}).get("state", "absent")
         results.append(result(name, f"BGP session with {label} ({ip})", "Established", state))
+
+        if standards.get("ebgp_bfd") and neighbor["remote_as"] != router["bgp"]["asn"]:
+            results.append(result(name, f"BFD with {label} ({ip})", "up", bfd.get(ip, "absent")))
 
         if "expect_prefixes" in neighbor:
             routes = vtysh_json(name, f"show bgp ipv4 unicast neighbors {ip} routes")
@@ -78,14 +97,37 @@ def check_bgp(name, router):
     return results
 
 
-def check_default_route(name, router):
-    """Routers with expect_default_route must use a default route from that protocol."""
-    if "expect_default_route" not in router:
+def check_routes(name, router):
+    """Each prefix in expect_routes must be learned from the expected protocol over
+    the expected number of equal-cost paths (redundancy check)."""
+    results = []
+    for prefix, want in router.get("expect_routes", {}).items():
+        entries = vtysh_json(name, f"show ip route {prefix}").get(prefix, [])
+        selected = [entry for entry in entries if entry.get("selected")]
+        if selected:
+            hops = [h for h in selected[0].get("nexthops", []) if h.get("active", True)]
+            actual = f"{selected[0].get('protocol', '?')} x{len(hops)}"
+        else:
+            actual = "absent"
+        expected = f"{want['protocol']} x{want['paths']}"
+        results.append(result(name, f"Route {prefix} (paths)", expected, actual))
+    return results
+
+
+def check_vrrp(name, router):
+    """Each VRRP group must be in its expected role (Master or Backup)."""
+    expected = router.get("expect_vrrp", {})
+    if not expected:
         return []
-    entries = vtysh_json(name, "show ip route 0.0.0.0/0").get("0.0.0.0/0", [])
-    selected = [entry for entry in entries if entry.get("selected")]
-    protocol = selected[0].get("protocol", "?") if selected else "absent"
-    return [result(name, "Default route source", router["expect_default_route"], protocol)]
+    data = vtysh_json(name, "show vrrp")
+    if isinstance(data, dict):
+        data = data.get("vrrp", data.get("routers", []))
+    states = {}
+    for vr in data:
+        status = vr.get("v4", {}).get("status") or vr.get("status", "?")
+        states[int(vr.get("vrid", -1))] = status
+    return [result(name, f"VRRP group {vrid} role", role, states.get(int(vrid), "absent"))
+            for vrid, role in expected.items()]
 
 
 def check_reachability(hosts):
@@ -102,10 +144,12 @@ def check_reachability(hosts):
 
 
 def check_loopbacks(routers, probes):
-    """Every router loopback must be reachable from each probe host."""
+    """Every site router loopback must be reachable from each probe host."""
     results = []
     for source in probes:
         for name, router in routers.items():
+            if "ospf" not in router:  # provider loopbacks are not routed between providers
+                continue
             ip = router["loopback"].split("/")[0]
             reachable = "reachable" if ping(source, ip) else "unreachable"
             results.append(result(source, f"Ping {name} loopback ({ip})", "reachable", reachable))

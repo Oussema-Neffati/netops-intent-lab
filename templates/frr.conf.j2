@@ -1,4 +1,5 @@
 {# Jinja2 template: one FRR config per router, rendered from intent/network.yml #}
+{% set std = standards | default({}) %}
 frr version {{ frr_version }}
 frr defaults traditional
 hostname {{ inventory_hostname }}
@@ -7,9 +8,20 @@ no ipv6 forwarding
 {% for intf in r.interfaces %}
 interface {{ intf.name }}
  description {{ intf.description }}
+{% if intf.ip is defined %}
  ip address {{ intf.ip }}
+{% endif %}
 {% if intf.ospf_p2p | default(false) %}
  ip ospf network point-to-point
+{% if std.ospf_md5_key is defined %}
+ ip ospf authentication message-digest
+ ip ospf message-digest-key 1 md5 {{ std.ospf_md5_key }}
+{% endif %}
+{% endif %}
+{% if intf.vrrp is defined %}
+ vrrp {{ intf.vrrp.vrid }}
+ vrrp {{ intf.vrrp.vrid }} priority {{ intf.vrrp.priority }}
+ vrrp {{ intf.vrrp.vrid }} ip {{ intf.vrrp.vip }}
 {% endif %}
 !
 {% endfor %}
@@ -35,10 +47,16 @@ route-map {{ name }} permit 10
 !
 {% endfor %}
 {% endif %}
+{% if r.ospf is defined %}
 router ospf
  ospf router-id {{ r.ospf.router_id }}
-{% for intf in r.ospf.passive %}
- passive-interface {{ intf }}
+{# Passive by default: every interface except the router-to-router links #}
+ passive-interface lo
+{% for intf in r.interfaces if not (intf.ospf_p2p | default(false)) %}
+ passive-interface {{ intf.name }}
+{% if intf.vrrp is defined %}
+ passive-interface vrrp4-{{ intf.vrrp.vrid }}
+{% endif %}
 {% endfor %}
 {% for net in r.ospf.networks %}
  network {{ net }} area 0
@@ -47,14 +65,22 @@ router ospf
  default-information originate
 {% endif %}
 !
+{% endif %}
 {% if r.bgp is defined %}
 router bgp {{ r.bgp.asn }}
  bgp router-id {{ r.bgp.router_id }}
 {% for n in r.bgp.neighbors %}
+{% set ebgp = n.remote_as != r.bgp.asn %}
  neighbor {{ n.ip }} remote-as {{ n.remote_as }}
  neighbor {{ n.ip }} description {{ n.description }}
 {% if n.update_source is defined %}
  neighbor {{ n.ip }} update-source {{ n.update_source }}
+{% endif %}
+{% if std.bgp_password is defined %}
+ neighbor {{ n.ip }} password {{ std.bgp_password }}
+{% endif %}
+{% if ebgp and std.ebgp_bfd | default(false) %}
+ neighbor {{ n.ip }} bfd
 {% endif %}
 {% endfor %}
  !
@@ -63,6 +89,7 @@ router bgp {{ r.bgp.asn }}
   network {{ net }}
 {% endfor %}
 {% for n in r.bgp.neighbors %}
+{% set ebgp = n.remote_as != r.bgp.asn %}
   neighbor {{ n.ip }} activate
 {% if n.next_hop_self | default(false) %}
   neighbor {{ n.ip }} next-hop-self
@@ -75,6 +102,9 @@ router bgp {{ r.bgp.asn }}
 {% endif %}
 {% if n.route_map_out is defined %}
   neighbor {{ n.ip }} route-map {{ n.route_map_out }} out
+{% endif %}
+{% if ebgp and std.ebgp_max_prefix is defined %}
+  neighbor {{ n.ip }} maximum-prefix {{ std.ebgp_max_prefix }}
 {% endif %}
 {% endfor %}
  exit-address-family

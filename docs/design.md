@@ -1,185 +1,163 @@
-# Network Design — netops-intent-lab
+# Network Design: netops-intent-lab
 
-Status: final design.
+Status: design v2. v1 (one edge and one core per site, one provider) is archived
+in Git history and in `results/archive-v1/`. v2 removes every single point of
+failure identified in the v1 review.
 
 ## 1. Topology
 
-A company with two sites (A and B) connected through a provider WAN.
-Each site is **dual-homed**: its edge router connects to both provider routers,
-so losing one WAN link or one provider router does not cut the site off.
+A company with two sites (A and B), each connected to **two independent providers**.
+Inside each site, **every device has a partner**: two edge routers, two core
+routers, gateway redundancy (VRRP) and an access switch with VLANs.
 
 ```
-                     AS 65000 — provider
-              wan-p1 ─────────────── wan-p2
-              lo 10.0.0.1             lo 10.0.0.2
-              │      ╲              ╱      │
-         eBGP │       ╲ eBGP  eBGP ╱       │ eBGP
-              │        ╲          ╱        │
-          a-edge (AS 65001)    b-edge (AS 65002)
-              │ OSPF                │ OSPF
-          a-core                b-core
-           │    │                │    │
-         h-a1  h-a2            h-b1  h-b2
+          isp1 (AS 65010)                     isp2 (AS 65020)
+           │          └──────────┐   ┌──────────┘          │
+       W1  │                 W3  │   │  W4                 │ W2
+           │                     │   │                     │
+   ┌───── a-edge1 ── iBGP ── a-edge2 ┐  ┌ b-edge1 ── iBGP ── b-edge2 ─────┐
+   │        │   ╲          ╱   │     │  │   │   ╲          ╱   │          │
+   │        │     ╲      ╱     │     │  │   │     ╲      ╱     │          │
+   │      a-core1 ═VRRP═ a-core2     │  │ b-core1 ═VRRP═ b-core2          │
+   │          ╲         ╱            │  │     ╲         ╱                 │
+   │     802.1Q trunks to a-sw1      │  │  802.1Q trunks to b-sw1         │
+   │        VLAN 10: h-a1            │  │   VLAN 10: h-b1                 │
+   │        VLAN 20: h-a2            │  │   VLAN 20: h-b2                 │
+   └──────── Site A · AS 65001 ──────┘  └──────── Site B · AS 65002 ──────┘
 ```
 
-- **Provider (AS 65000)**: transit only, no hosts. Plays the PE (Provider Edge) role.
-- **Edges (a-edge, b-edge)**: each site's border router (CE, Customer Edge).
-  Boundary between OSPF (inside) and BGP (outside).
-- **Cores (a-core, b-core)**: internal routers and default gateways for the hosts.
-- **Hosts**: Linux containers used as traffic endpoints for reachability tests.
+- **Providers:** isp1 and isp2 are independent (different AS numbers, no link
+  between them). Each connects one edge router in each site.
+- **Edge routers:** each site has two, each connected to a different provider.
+  They exchange routes with iBGP between their loopbacks.
+- **Core routers:** each site has two, each connected to both edges (full mesh,
+  4 OSPF links per site). They are the hosts' gateways, made redundant with VRRP.
+- **Access switch:** one per site, carrying VLAN 10 and VLAN 20 on 802.1Q trunks
+  to both cores. Implemented as a Linux container with one bridge per VLAN.
+- **Hosts:** Linux containers, one per VLAN, using the VRRP virtual IP as gateway.
 
-10 nodes: 6 FRRouting routers + 4 hosts.
+16 nodes: 10 FRRouting routers, 2 switches, 4 hosts.
 
 ## 2. Addressing plan
 
-The second octet encodes ownership: **10.0.x.x = provider, 10.1.x.x = site A,
-10.2.x.x = site B.** All addresses are private (RFC 1918).
+Second octet = owner: **10.0 = providers, 10.1 = site A, 10.2 = site B.**
 
 | Purpose | Prefix | Addresses |
 |---|---|---|
-| Provider loopbacks | 10.0.0.0/24 | wan-p1 10.0.0.1/32 · wan-p2 10.0.0.2/32 |
-| L1: wan-p1 ↔ wan-p2 | 10.0.1.0/30 | p1 .1 · p2 .2 |
-| L2: wan-p1 ↔ a-edge | 10.0.2.0/30 | p1 .1 · a-edge .2 |
-| L3: wan-p2 ↔ a-edge | 10.0.3.0/30 | p2 .1 · a-edge .2 |
-| L4: wan-p1 ↔ b-edge | 10.0.4.0/30 | p1 .1 · b-edge .2 |
-| L5: wan-p2 ↔ b-edge | 10.0.5.0/30 | p2 .1 · b-edge .2 |
-| Site A loopbacks | 10.1.0.0/24 | a-edge 10.1.0.1/32 · a-core 10.1.0.2/32 |
-| L6: a-edge ↔ a-core | 10.1.1.0/30 | edge .1 · core .2 |
-| Site A LAN 1 | 10.1.10.0/24 | gateway a-core .1 · h-a1 .10 |
-| Site A LAN 2 | 10.1.20.0/24 | gateway a-core .1 · h-a2 .10 |
-| Site B loopbacks | 10.2.0.0/24 | b-edge 10.2.0.1/32 · b-core 10.2.0.2/32 |
-| L7: b-edge ↔ b-core | 10.2.1.0/30 | edge .1 · core .2 |
-| Site B LAN 1 | 10.2.10.0/24 | gateway b-core .1 · h-b1 .10 |
-| Site B LAN 2 | 10.2.20.0/24 | gateway b-core .1 · h-b2 .10 |
+| Provider loopbacks | 10.0.0.0/24 | isp1 .1 · isp2 .2 |
+| W1 isp1 ↔ a-edge1 | 10.0.1.0/30 | isp .1 · edge .2 |
+| W2 isp2 ↔ a-edge2 | 10.0.2.0/30 | isp .1 · edge .2 |
+| W3 isp1 ↔ b-edge1 | 10.0.3.0/30 | isp .1 · edge .2 |
+| W4 isp2 ↔ b-edge2 | 10.0.4.0/30 | isp .1 · edge .2 |
+| Site A loopbacks | 10.1.0.0/24 | a-edge1 .1 · a-edge2 .2 · a-core1 .3 · a-core2 .4 |
+| A1 a-edge1 ↔ a-core1 | 10.1.1.0/30 | edge .1 · core .2 |
+| A2 a-edge1 ↔ a-core2 | 10.1.1.4/30 | edge .5 · core .6 |
+| A3 a-edge2 ↔ a-core1 | 10.1.1.8/30 | edge .9 · core .10 |
+| A4 a-edge2 ↔ a-core2 | 10.1.1.12/30 | edge .13 · core .14 |
+| Site A VLAN 10 | 10.1.10.0/24 | VIP .1 · a-core1 .2 · a-core2 .3 · h-a1 .10 |
+| Site A VLAN 20 | 10.1.20.0/24 | VIP .1 · a-core1 .2 · a-core2 .3 · h-a2 .10 |
+| Site B | 10.2.x.x | same structure as site A (B1–B4, VLANs 10 and 20) |
 
-**Why loopbacks:** a loopback is a virtual interface that never goes down while
-the router is alive. It gives each router a stable identity: OSPF router ID,
-BGP peering address, and the address used to test "is this router reachable?".
-(Not to be confused with 127.0.0.1, which never leaves the machine.)
-
-**Why /30 on links:** familiar and simple. In production, /31 point-to-point
-links would save addresses.
+**Why /30 on links:** kept on purpose for readability (the CCNA convention).
+In production, /31 point-to-point links (RFC 3021) would halve their address use.
 
 ## 3. Interface map
 
-`eth0` on every node is the Containerlab management interface (172.20.20.0/24).
-Data-plane links start at `eth1`.
+`eth0` is the Containerlab management interface on every node.
 
-| Node | eth1 | eth2 | eth3 |
-|---|---|---|---|
-| wan-p1 | wan-p2 | a-edge | b-edge |
-| wan-p2 | wan-p1 | a-edge | b-edge |
-| a-edge | wan-p1 | wan-p2 | a-core |
-| a-core | a-edge | h-a1 | h-a2 |
-| b-edge | wan-p1 | wan-p2 | b-core |
-| b-core | b-edge | h-b1 | h-b2 |
-| hosts | their core | — | — |
+| Node | eth1 | eth2 | eth3 | eth4 |
+|---|---|---|---|---|
+| isp1 | a-edge1 (W1) | b-edge1 (W3) | | |
+| isp2 | a-edge2 (W2) | b-edge2 (W4) | | |
+| x-edge1 | isp1 | x-core1 | x-core2 | |
+| x-edge2 | isp2 | x-core1 | x-core2 | |
+| x-core1 / x-core2 | x-edge1 | x-edge2 | trunk to x-sw1 (eth3.10, eth3.20) | |
+| x-sw1 | trunk x-core1 | trunk x-core2 | access VLAN 10 (h-x1) | access VLAN 20 (h-x2) |
 
-The map is symmetrical on purpose: eth1 always points towards the provider
-(or, for p1/p2, towards each other). Fewer typos now, simpler templates in M2.
+## 4. Routing and switching design
 
-## 4. Routing design
+### 4.1 Providers
+- Each provider runs eBGP with one edge per site, sends each a **default route**
+  and the other site's summary, and accepts only the summary each customer owns
+  (prefix-lists).
+- The two providers are independent: no link, no shared routing. Losing one
+  provider completely leaves every site reachable through the other.
 
-### 4.1 Inside the provider (AS 65000)
-
-- **OSPF area 0** on L1 and both loopbacks.
-  *Why:* its only job is to make each provider router's loopback reachable
-  from the other, so they can run iBGP between loopbacks.
-- **iBGP between loopbacks** (`update-source lo`).
-  *Why:* a session between loopbacks does not depend on one physical link; it
-  stays up as long as any path exists.
-- **`next-hop-self` on the iBGP session.**
-  *Why:* every BGP route carries a "next hop" (where to send the traffic). In
-  eBGP, the sender puts its own address there; iBGP passes it on unchanged.
-  So when wan-p1 tells wan-p2 about site A, the next hop would be 10.0.2.2
-  (a-edge's address on L2), which wan-p2 cannot reach, making the route
-  unusable. `next-hop-self` makes wan-p1 put its own loopback (10.0.0.1) as
-  next hop, which wan-p2 reaches through OSPF. This matters most during
-  failover: when wan-p2's own link to a-edge is down, the iBGP route is its
-  only path to site A.
-
-### 4.2 Between the provider and the sites (eBGP)
-
-- **Two eBGP sessions per edge**, one to each provider router, over the directly
-  connected link addresses.
-  *Why:* dual-homing. If one link or one provider router fails, the other
-  session still carries the traffic.
-- **Each site announces one summary:** site A → 10.1.0.0/16, site B → 10.2.0.0/16.
-  *Why:* a summary is one route covering many subnets (10.1.0.0/16 covers every
-  address from 10.1.0.0 to 10.1.255.255, so all of site A). The provider's
-  table stays small, and adding a LAN inside a site changes nothing outside it.
-- **A blackhole static route for each summary** (`ip route 10.1.0.0/16 blackhole`,
-  equivalent to Cisco's `Null0`).
-  *Why (1):* BGP's `network 10.1.0.0/16` only announces a prefix that exists
-  exactly in the routing table. No real subnet is a /16; the static route
-  creates it.
-  *Why (2):* it prevents loops. By longest prefix match, traffic to real subnets
-  (e.g. 10.1.10.0/24) follows the more specific OSPF routes. Traffic to an
-  address that does not exist (e.g. 10.1.99.5) only matches the /16 and is
-  dropped at the edge, instead of bouncing between the edge and the provider
-  until its TTL expires.
-- **The provider sends each edge a default route** (`default-originate`), plus
-  the other site's summary.
-- **Explicit eBGP policies (prefix-lists).** FRR refuses to exchange eBGP routes
-  until a policy is applied (`bgp ebgp-requires-policy`). The provider accepts
-  only the summary each customer owns: 10.1.0.0/16 from a-edge, 10.2.0.0/16
-  from b-edge.
-  *Why:* this is what real providers do, so a customer mistake cannot leak
-  wrong routes into the WAN.
+### 4.2 Edge routers
+- **eBGP** to their provider; **iBGP between the two edges of a site**, over
+  loopbacks (`update-source lo`, `next-hop-self`).
+  *Why iBGP:* if a-edge1 loses its provider, it still learns site B's summary
+  and the default route from a-edge2, so traffic arriving at a-edge1 is not
+  dropped.
+- Each edge announces the site summary (10.1.0.0/16), made announceable by a
+  **blackhole static route**, and injects a default route into OSPF with
+  `default-information originate` (no `always`).
 
 ### 4.3 Inside each site (OSPF area 0)
+- **Full mesh edge ↔ core:** 4 point-to-point links. Losing any one link or any
+  one router leaves at least one path.
+- **Equal-cost paths:** each core reaches the default route through both edges,
+  and each edge reaches each VLAN through both cores (ECMP). The validator checks
+  that these paths really are 2 (redundancy, not only reachability).
+- **Passive by default:** every interface is passive except the router-to-router
+  links, derived by the template from `ospf_p2p: true`.
 
-- **Edge ↔ core link uses `ip ospf network point-to-point`.**
-  *Why:* a DR/BDR election is useless on a link with only two routers; it only
-  adds delay and an extra LSA type (observed in the frr01 example).
-- **Loopbacks advertised deliberately.**
-  *Why:* in the frr01 example, loopbacks were configured but not advertised, so
-  they were unreachable although the hosts expected them to be.
-- **Host LANs advertised as passive interfaces.**
-  *Why:* the LAN must be known to OSPF, but there is no router on it, so no
-  hellos are sent towards the hosts.
-- **The edge injects the default route into OSPF with `default-information
-  originate`, without `always`.**
-  *Why:* the edge then advertises a default only while it actually has one from
-  BGP. If both WAN links die, the default disappears from the core, and the
-  core stops sending traffic into a dead end.
+### 4.4 Gateway redundancy (VRRP)
+- Each VLAN has a **virtual gateway IP (.1)** shared by both cores with VRRP.
+  The core with the higher priority (core1, 150) is **Master** and answers for
+  the virtual IP; core2 (100) is **Backup** and takes over if core1 fails.
+- VRRP is the open standard equivalent of Cisco's HSRP.
+- Implementation detail (Linux/FRR): the virtual IP lives on a macvlan interface
+  with the VRRP virtual MAC (00:00:5e:00:01:VRID), created at deploy time.
 
-### 4.4 Hosts
+### 4.5 Access switching
+- One bridge per VLAN; trunk ports carry VLANs 10 and 20 as 802.1Q
+  subinterfaces; access ports are untagged members of one VLAN.
 
-- Each host: its address on eth1 and a route to **10.0.0.0/8 via its gateway**.
-  *Why:* the hosts' default route already points to management (eth0), so the
-  data network is reached through a more specific route.
+## 5. Network standards (applied to every router by the template)
 
-### 4.5 What the design deliberately leaves out
+| Standard | Where | Why |
+|---|---|---|
+| OSPF MD5 authentication | every router-to-router link | an unauthenticated device cannot join OSPF or inject routes |
+| BGP TCP-MD5 password | every BGP session | protects sessions against spoofed TCP packets and resets |
+| BFD | every eBGP session | detects a failed neighbour in under a second instead of the BGP hold timer (180 s) |
+| Maximum-prefix 10 | every eBGP session | a neighbour sending too many routes (a leak) is shut down |
+| Passive by default | OSPF | no hellos towards hosts |
 
-- **No NAT and no internet access.** The sites talk over a private WAN with
-  end-to-end routing, like a real private WAN or MPLS service. NAT would change
-  addresses in transit and complicate the reachability checks.
-- **No IPv6, no firewall node, no monitoring stack** in the minimum version
-  (monitoring and an nftables security node are planned extensions).
+Secrets in the intent file are **lab-only values**; in production they would
+come from a vault (e.g. Ansible Vault).
 
-## 5. Expected state (intent, version 0)
+## 6. Scope and remaining assumptions
 
-| Check | Expected |
-|---|---|
-| OSPF adjacencies | 3, all Full: p1–p2, a-edge–a-core, b-edge–b-core |
-| BGP sessions | 5, all Established: p1–p2 (iBGP) + 4 eBGP |
-| a-edge receives | 10.2.0.0/16 and 0.0.0.0/0, each from **both** wan-p1 and wan-p2 |
-| b-edge receives | 10.1.0.0/16 and 0.0.0.0/0, each from **both** wan-p1 and wan-p2 |
-| Provider accepts | only 10.1.0.0/16 from a-edge and only 10.2.0.0/16 from b-edge |
-| Cores have | a default route via their edge, learned by OSPF |
-| Reachability | every host reaches every other host (4×4 matrix) + all loopbacks |
+v2 removes the single points of failure of v1. Still deliberately out of scope:
+- **One access switch per site** (a switch stack or a second switch would remove
+  this last single point of failure for the hosts).
+- Internet edge and NAT, firewalls and security zones, wireless, remote access
+  (VPN/ZTNA), IPv6, QoS.
+- **Management plane:** routers are reached with `docker exec`; no NTP, syslog,
+  AAA or SNMP inside the lab.
 
-Note: "receives each prefix from both providers" is a check a ping cannot make.
-With one eBGP session down, every ping still succeeds, but the site has lost
-its redundancy.
+## 7. Expected state (intent v2): 96 checks
 
-## 6. New concepts in this design (learning notes)
+| Check | Count | Expected |
+|---|---|---|
+| OSPF neighbours (derived from the p2p subnets) | 16 | Full, authenticated |
+| BGP sessions (eBGP + iBGP) | 12 | Established |
+| Prefixes received per BGP neighbour | 12 | exactly the expected list |
+| BFD sessions (eBGP, both sides) | 8 | up |
+| Redundant routes (`expect_routes`) | 12 | 2 equal-cost OSPF paths |
+| VRRP roles | 8 | core1 Master, core2 Backup |
+| Site router loopbacks from each site | 16 | reachable |
+| Host-to-host matrix | 12 | reachable |
 
-CCNA concepts used: single-area OSPF, router ID, DR/BDR, OSPF network types,
-static and default routes, summarization, longest prefix match, loopbacks.
+The redundancy checks matter most in v2: with this much redundancy, almost no
+single failure breaks a ping, so only state checks can see that a backup path,
+a session or a gateway role has been lost.
 
-Beyond CCNA (learned in this project): eBGP and iBGP, next-hop-self,
-`default-originate`, BGP prefix-list policies, blackhole routes for summaries,
-dual-homing. Each one is demonstrated in the lab by configuring it, removing it
-on purpose, and observing what breaks (see `journal.md`).
+## 8. Concepts used
+
+CCNA: OSPF (point-to-point, passive, authentication, ECMP), static and default
+routes, summarization, VLANs and 802.1Q trunks, first-hop redundancy (VRRP/HSRP),
+loopbacks.
+Beyond CCNA: eBGP and iBGP, next-hop-self, prefix-list policies, BFD,
+maximum-prefix, blackhole routes for summaries, multihoming to two providers.

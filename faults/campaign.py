@@ -1,4 +1,4 @@
-"""M4: CCNA-level fault campaign.
+"""CCNA-level fault campaign (v2 topology).
 
 For each fault: check the network is healthy, inject the fault, wait for the
 network to react, run the validator in full mode and in ping-only mode,
@@ -6,7 +6,7 @@ repair the fault, wait until the network is healthy again, and record the
 result. At the end, write the fault ledger (results/fault-ledger.md).
 
 Run from the repo root:
-    python3 faults/campaign.py                  # all 8 faults (about 20 minutes)
+    python3 faults/campaign.py                  # all 9 faults (about 25 minutes)
     python3 faults/campaign.py --only ospf-area # one fault
     python3 faults/campaign.py --list           # show the faults
 """
@@ -53,67 +53,67 @@ saved = {}  # values remembered between inject and repair (e.g. the original MTU
 
 
 def inject_mtu():
-    saved["mtu"] = sh("wan-p1", "cat", "/sys/class/net/eth1/mtu")
-    sh("wan-p1", "ip", "link", "set", "eth1", "mtu", "1400")
-    sh("wan-p1", "vtysh", "-c", "clear ip ospf process")  # force the adjacency to form again
+    saved["mtu"] = sh("a-edge2", "cat", "/sys/class/net/eth2/mtu")
+    sh("a-edge2", "ip", "link", "set", "eth2", "mtu", "1400")
+    sh("a-edge2", "vtysh", "-c", "clear ip ospf process")  # force the adjacencies to form again
 
 
 def repair_mtu():
-    sh("wan-p1", "ip", "link", "set", "eth1", "mtu", saved["mtu"])
-    sh("wan-p1", "vtysh", "-c", "clear ip ospf process")
+    sh("a-edge2", "ip", "link", "set", "eth2", "mtu", saved["mtu"])
+    sh("a-edge2", "vtysh", "-c", "clear ip ospf process")
 
 
 FAULTS = [
     {
         "name": "link-down",
         "topic": "Interface status, redundancy",
-        "description": "WAN link L2 shut down (wan-p1 eth2, towards a-edge)",
-        "inject": lambda: sh("wan-p1", "ip", "link", "set", "eth2", "down"),
-        "repair": lambda: sh("wan-p1", "ip", "link", "set", "eth2", "up"),
+        "description": "WAN link W1 shut down (isp1 eth1, towards a-edge1)",
+        "inject": lambda: sh("isp1", "ip", "link", "set", "eth1", "down"),
+        "repair": lambda: sh("isp1", "ip", "link", "set", "eth1", "up"),
     },
     {
         "name": "ospf-passive",
         "topic": "OSPF passive interfaces",
-        "description": "passive-interface on the provider core link (wan-p1 eth1)",
-        "inject": lambda: frr_config("wan-p1", "router ospf", "passive-interface eth1"),
-        "repair": lambda: frr_config("wan-p1", "router ospf", "no passive-interface eth1"),
+        "description": "passive-interface on a router-to-router link (a-edge1 eth2, link A1)",
+        "inject": lambda: frr_config("a-edge1", "router ospf", "passive-interface eth2"),
+        "repair": lambda: frr_config("a-edge1", "router ospf", "no passive-interface eth2"),
     },
     {
         "name": "ospf-mtu",
         "topic": "OSPF adjacency requirements (MTU)",
-        "description": "MTU lowered to 1400 on wan-p1 eth1 (neighbour keeps its MTU)",
+        "description": "MTU lowered to 1400 on a-edge2 eth2 (link A3, a-core1 keeps its MTU)",
         "inject": inject_mtu,
         "repair": repair_mtu,
     },
     {
         "name": "ospf-timers",
         "topic": "OSPF adjacency requirements (hello/dead timers)",
-        "description": "hello interval 5 s on a-edge eth3 (a-core keeps 10 s)",
-        "inject": lambda: frr_config("a-edge", "interface eth3", "ip ospf hello-interval 5"),
-        "repair": lambda: frr_config("a-edge", "interface eth3", "no ip ospf hello-interval"),
+        "description": "hello interval 5 s on b-edge1 eth2 (link B1, b-core1 keeps 10 s)",
+        "inject": lambda: frr_config("b-edge1", "interface eth2", "ip ospf hello-interval 5"),
+        "repair": lambda: frr_config("b-edge1", "interface eth2", "no ip ospf hello-interval"),
     },
     {
         "name": "ospf-area",
         "topic": "OSPF areas",
-        "description": "b-core puts link L7 in area 1 (b-edge keeps area 0)",
-        "inject": lambda: frr_config("b-core", "router ospf",
-                                     "no network 10.2.1.0/30 area 0", "network 10.2.1.0/30 area 1"),
-        "repair": lambda: frr_config("b-core", "router ospf",
-                                     "no network 10.2.1.0/30 area 1", "network 10.2.1.0/30 area 0"),
+        "description": "b-core2 puts link B4 in area 1 (b-edge2 keeps area 0)",
+        "inject": lambda: frr_config("b-core2", "router ospf",
+                                     "no network 10.2.1.12/30 area 0", "network 10.2.1.12/30 area 1"),
+        "repair": lambda: frr_config("b-core2", "router ospf",
+                                     "no network 10.2.1.12/30 area 1", "network 10.2.1.12/30 area 0"),
     },
     {
         "name": "missing-lan",
         "topic": "OSPF configuration (network statement)",
-        "description": "a-core no longer advertises LAN 10.1.20.0/24 (h-a2)",
-        "inject": lambda: frr_config("a-core", "router ospf", "no network 10.1.20.0/24 area 0"),
-        "repair": lambda: frr_config("a-core", "router ospf", "network 10.1.20.0/24 area 0"),
+        "description": "a-core1 no longer advertises VLAN 20 (10.1.20.0/24)",
+        "inject": lambda: frr_config("a-core1", "router ospf", "no network 10.1.20.0/24 area 0"),
+        "repair": lambda: frr_config("a-core1", "router ospf", "network 10.1.20.0/24 area 0"),
     },
     {
         "name": "missing-loopback",
         "topic": "OSPF configuration (loopbacks)",
-        "description": "b-core no longer advertises its loopback 10.2.0.2/32",
-        "inject": lambda: frr_config("b-core", "router ospf", "no network 10.2.0.2/32 area 0"),
-        "repair": lambda: frr_config("b-core", "router ospf", "network 10.2.0.2/32 area 0"),
+        "description": "b-core1 no longer advertises its loopback 10.2.0.3/32",
+        "inject": lambda: frr_config("b-core1", "router ospf", "no network 10.2.0.3/32 area 0"),
+        "repair": lambda: frr_config("b-core1", "router ospf", "network 10.2.0.3/32 area 0"),
     },
     {
         "name": "host-gateway",
@@ -121,6 +121,13 @@ FAULTS = [
         "description": "h-b2 sends traffic to a wrong gateway (10.2.20.99)",
         "inject": lambda: sh("h-b2", "ip", "route", "replace", "10.0.0.0/8", "via", "10.2.20.99", "dev", "eth1"),
         "repair": lambda: sh("h-b2", "ip", "route", "replace", "10.0.0.0/8", "via", "10.2.20.1", "dev", "eth1"),
+    },
+    {
+        "name": "fhrp-failover",
+        "topic": "First-hop redundancy (VRRP)",
+        "description": "a-core1 loses its trunk to a-sw1: a-core2 must take over the gateway",
+        "inject": lambda: sh("a-core1", "ip", "link", "set", "eth3", "down"),
+        "repair": lambda: sh("a-core1", "ip", "link", "set", "eth3", "up"),
     },
 ]
 
