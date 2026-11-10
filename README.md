@@ -10,7 +10,6 @@ CCNA-level faults.**
 | Validation | **100 checks in ~12 s** (OSPF, BGP, BFD, redundant paths, VRRP, reachability) |
 | CCNA-level faults detected | **Validator 9/9 · ping-only check 1/9** |
 
-![Topology in Containerlab](docs/images/topology.png)
 
 ## Engineering question
 In a redundant two-site network, can automated **intent-based validation**
