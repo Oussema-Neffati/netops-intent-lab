@@ -204,13 +204,13 @@ def write_ledger():
     lines = [
         "# Fault ledger",
         "",
-        "| # | Fault | CCNA topic | Ping only | Validator | Validator failed checks |",
-        "|---|---|---|---|---|---|",
+        "| # | Fault | CCNA topic | Ping only | Validator |",
+        "|---|---|---|---|---|",
     ]
     for r in records:
         lines.append(
             f"| {r['number']} | {r['description']} | {r['topic']} | {yes_no[r['ping_detected']]} "
-            f"| {yes_no[r['validator_detected']]} | {r['validator_failed_checks']}/{r['validator_total_checks']} |"
+            f"| {yes_no[r['validator_detected']]} |"
         )
     total = len(records)
     validator = sum(r["validator_detected"] for r in records)
