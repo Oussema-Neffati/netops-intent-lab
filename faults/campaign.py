@@ -197,6 +197,32 @@ def run_fault(number, fault):
     (FAULT_DIR / f"{label}.json").write_text(json.dumps(record, indent=2))
 
 
+CHECK_TYPES = [            # check name prefix -> short label for the ledger
+    ("OSPF neighbour", "OSPF adjacency"),
+    ("BGP session", "BGP session"),
+    ("BFD with", "BFD"),
+    ("Prefixes received", "BGP prefixes"),
+    ("Route ", "path count (ECMP)"),
+    ("VRRP group", "VRRP role"),
+    ("loopback", "loopback reachability"),
+    ("Ping h-", "host ping"),
+]
+
+
+def caught_by(record):
+    """Which types of checks failed during this fault, from the latest full-mode run report."""
+    runs = sorted((REPO / "results" / "runs").glob(f"*-fault{record['number']}-{record['name']}-full.json"))
+    if not runs:
+        return "n/a"
+    failed = json.loads(runs[-1].read_text())["failed_checks"]
+    labels = []
+    for check in failed:
+        for key, label in CHECK_TYPES:
+            if key in check["check"] and label not in labels:
+                labels.append(label)
+    return ", ".join(labels) if labels else "none"
+
+
 def write_ledger():
     records = sorted((json.loads(p.read_text()) for p in FAULT_DIR.glob("*.json")),
                      key=lambda r: r["number"])
@@ -204,13 +230,13 @@ def write_ledger():
     lines = [
         "# Fault ledger",
         "",
-        "| # | Fault | CCNA topic | Ping only | Validator |",
-        "|---|---|---|---|---|",
+        "| # | Fault | CCNA topic | Ping only | Validator | Caught by (validator checks that failed) |",
+        "|---|---|---|---|---|---|",
     ]
     for r in records:
         lines.append(
             f"| {r['number']} | {r['description']} | {r['topic']} | {yes_no[r['ping_detected']]} "
-            f"| {yes_no[r['validator_detected']]} |"
+            f"| {yes_no[r['validator_detected']]} | {caught_by(r)} |"
         )
     total = len(records)
     validator = sum(r["validator_detected"] for r in records)
